@@ -1,8 +1,15 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const app = express();
 
 const authRoutes = require('./src/routes/auth.routes');
+
+// Enable CORS
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? undefined : '*',
+  credentials: true
+}));
 
 app.use(express.json());
 
@@ -12,7 +19,10 @@ const path = require('path');
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+// Health check endpoint for Vercel
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

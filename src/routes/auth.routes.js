@@ -8,39 +8,46 @@ router.post('/login', authController.login);
 const authMiddleware = require('../middleware/auth.middleware');
 const db = require('../config/db');
 
-router.get('/me', authMiddleware, (req, res) => {
-  db.get(
-    'SELECT id, email, nativeLang, learningLang FROM users WHERE id = ?',
-    [req.user.id],
-    (err, user) => {
-      if (err) return res.status(500).json({ error: 'DB error' });
-      if (!user) return res.status(404).json({ error: 'User not found' });
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT id, email, nativeLang, learningLang FROM users WHERE id = $1',
+      [req.user.id]
+    );
 
-      res.json(user);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: 'DB error' });
+  }
 });
 
-router.put('/me/language', authMiddleware, (req, res) => {
-  const { learningLang } = req.body;
-  
-  if (!learningLang) {
-    return res.status(400).json({ error: 'learningLang is required' });
-  }
-
-  db.run(
-    'UPDATE users SET learningLang = ? WHERE id = ?',
-    [learningLang, req.user.id],
-    function (err) {
-      if (err) return res.status(500).json({ error: 'DB error' });
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.json({ message: 'Language updated successfully' });
+router.put('/me/language', authMiddleware, async (req, res) => {
+  try {
+    const { learningLang } = req.body;
+    
+    if (!learningLang) {
+      return res.status(400).json({ error: 'learningLang is required' });
     }
-  );
+
+    const result = await db.query(
+      'UPDATE users SET learningLang = $1 WHERE id = $2 RETURNING id',
+      [learningLang, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Language updated successfully' });
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: 'DB error' });
+  }
 });
 
 module.exports = router;
