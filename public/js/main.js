@@ -71,8 +71,14 @@ async function initializeApp() {
     // Set initial keyboard context for flashcards mode
     setKeyboardContext(KEYBOARD_CONTEXTS.FLASHCARDS);
     
-    // Show first card
-    flashcardsMode.showCard(DataManager.getDeck(0), DataManager.currentUser.learningLang);
+    // Show first card if decks exist
+    const firstDeck = DataManager.getDeck(0);
+    if (firstDeck) {
+      flashcardsMode.showCard(firstDeck, DataManager.currentUser.learningLang);
+    } else {
+      // Show empty state if no decks
+      UI.card.innerHTML = '<div style="text-align: center; padding: 40px;"><p style="font-size: 18px; color: var(--text-light);">No decks available. Create one or add decks from <a href="recommended.html">Recommended Decks</a>.</p></div>';
+    }
     
     console.log('App initialized successfully');
   } catch (error) {

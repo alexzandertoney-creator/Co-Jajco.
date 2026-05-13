@@ -1,4 +1,6 @@
 let decks = JSON.parse(localStorage.getItem("decks")) || [];
+let currentUser = null;
+
 const langMap = {
   en: 'en-US',
   fr: 'fr-FR',
@@ -94,7 +96,6 @@ async function loadUser() {
 
   currentUser = await res.json(); // ✅ FIXED
 }
-let currentUser;
 let reviewCards = [];
 let currentIndex = 0;
 let frontIsQuestion = true;
