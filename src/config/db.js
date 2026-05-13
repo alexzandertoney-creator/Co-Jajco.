@@ -1,16 +1,34 @@
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 
-const db = new sqlite3.Database('./database.db', (err) => {
-  if (err) console.error(err.message);
-  else console.log('Connected to SQLite DB');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
-db.run(`
+
+pool.on('connect', () => {
+  console.log('Connected to PostgreSQL DB');
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+// Create tables
+pool.query(`
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT UNIQUE,
-  password TEXT,
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
   nativeLang TEXT,
   learningLang TEXT
 )
-`);
-module.exports = db;
+`, (err, res) => {
+  if (err) {
+    console.error('Error creating table:', err);
+  } else {
+    console.log('Users table ready');
+  }
+});
+
+module.exports = pool;

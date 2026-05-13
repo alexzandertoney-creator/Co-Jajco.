@@ -2,52 +2,42 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-exports.register = async (db, { email, password, nativeLang, learningLang }) => {
-  return new Promise(async (resolve, reject) => {
-    if (!email || !password || !nativeLang || !learningLang) {
-      return reject(new Error("Missing fields"));
-    }
+exports.register = async ({ email, password, nativeLang, learningLang }) => {
+  if (!email || !password || !nativeLang || !learningLang) {
+    throw new Error("Missing fields");
+  }
 
-    const hashed = await bcrypt.hash(password, 10);
+  const hashed = await bcrypt.hash(password, 10);
 
-    db.run(
-      `INSERT INTO users (email, password, nativeLang, learningLang)
-       VALUES (?, ?, ?, ?)`,
-      [email, hashed, nativeLang, learningLang],
-      function (err) {
-        if (err) return reject(err);
+  const result = await db.query(
+    `INSERT INTO users (email, password, nativeLang, learningLang)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
+    [email, hashed, nativeLang, learningLang]
+  );
 
-        const token = jwt.sign(
-          { id: this.lastID },
-          process.env.JWT_SECRET,
-          { expiresIn: "7d" }
-        );
+  const token = jwt.sign(
+    { id: result.rows[0].id },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
-        resolve({ token });
-      }
-    );
-  });
+  return { token };
 };
 
-exports.login = (db, email, password) => {
-  return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT * FROM users WHERE email = ?',
-      [email],
-      async (err, user) => {
-        if (err) return reject(err);
-        if (!user) return reject(new Error('User not found'));
+exports.login = async (email, password) => {
+  const result = await db.query(
+    'SELECT * FROM users WHERE email = $1',
+    [email]
+  );
 
-        const bcrypt = require('bcrypt');
-        const jwt = require('jsonwebtoken');
+  const user = result.rows[0];
+  if (!user) throw new Error('User not found');
 
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return reject(new Error('Invalid credentials'));
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) throw new Error('Invalid credentials');
 
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
-        resolve({ token });
-      }
-    );
-  });
+  return { token };
 };
