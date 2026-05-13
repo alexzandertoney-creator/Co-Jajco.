@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Co? Jajco. - Language Learning</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 20px;">
+      <h1 style="margin: 0;">📘 Co? Jajco.</h1>
+      <nav style="display: flex; gap: 12px; align-items: center;">
+        <label for="languageSelect" style="color: var(--text-dark); margin: 0;">Learning Language:</label>
+        <select id="languageSelect" style="width: 150px;">
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="pl">Polish</option>
+          <option value="jp">Japanese</option>
+          <option value="en">English</option>
+        </select>
+        <button id="logoutBtn" class="secondary">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- DECK & LANGUAGE CONTROLS -->
+  <section class="deck-controls">
+    <select id="deckSelect"></select>
+    <button id="newDeck">➕ New Deck</button>
+    <button id="recommendedDecksBtn">📚 Recommended Decks</button>
+  </section>
+
+  <!-- MODE SELECTOR -->
+  <nav class="mode-selector">
+    <button data-mode="flashcards">🎴 Flashcards</button>
+    <button data-mode="learn">📖 Learn</button>
+    <button data-mode="test">✏️ Test</button>
+    <button data-mode="match">🎮 Match</button>
+    <button data-mode="deckEditor">🛠 Editor</button>
+    <button data-mode="storyAnalyzer">📚 Stories</button>
+    <button data-mode="smartReview" onclick="window.location.href='smartReview.html'">🧠 Smart Review</button>
+  </nav>
+
+  <!-- FLASHCARDS MODE -->
+  <section id="flashcardContainer" class="mode-container">
+    <div id="card" class="card">
+      <div class="card-front">
+        <p id="question"></p>
+        <button id="speakFrontBtn" title="Listen">🔊</button>
+      </div>
+      <div class="card-back">
+        <p id="answer"></p>
+        <button id="speakBackBtn" title="Listen">🔊</button>
+      </div>
+    </div>
+    
+    <div id="studyControls">
+      <button id="correctBtn" class="success">✅ Correct</button>
+      <button id="incorrectBtn" class="danger">❌ Incorrect</button>
+    </div>
+    
+    <div class="flashcard-controls">
+      <button id="prev">⬅ Previous</button>
+      <button id="swapSides">🔄 Swap</button>
+      <button id="next">Next ➡</button>
+    </div>
+    
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+      <label class="study-toggle">
+        <input type="checkbox" id="studyModeToggle">
+        Study Mode
+      </label>
+      <label class="study-toggle">
+        <input type="checkbox" id="flashShuffleToggle">
+        Shuffle
+      </label>
+      <select id="speakMode" style="padding: 8px 12px;">
+        <option value="off">🔇 Off</option>
+        <option value="learning">🎯 Learning</option>
+        <option value="native">🧠 Native</option>
+        <option value="both">🌍 Both</option>
+      </select>
+    </div>
+    
+    <div id="cardProgress"></div>
+  </section>
+
+  <!-- LEARN MODE -->
+  <section id="learnContainer" class="mode-container">
+    <p id="learnQuestion"></p>
+    <input id="learnAnswer" placeholder="Type your answer" />
+    <button id="submitLearn">Submit Answer</button>
+    <p id="learnFeedback"></p>
+    <label class="study-toggle">
+      <input type="checkbox" id="shuffleToggle">
+      Shuffle Cards
+    </label>
+  </section>
+
+  <!-- TEST MODE -->
+  <section id="testContainer" class="mode-container">
+    <p id="testQuestion"></p>
+    <div id="testOptions"></div>
+    <p id="testFeedback"></p>
+    <p id="testScore"></p>
+  </section>
+
+  <!-- MATCH MODE -->
+  <section id="matchContainer" class="mode-container">
+    <p>⏱ Time: <span id="matchTimer">60</span>s</p>
+    <div id="matchGrid"></div>
+    <p id="matchFeedback"></p>
+  </section>
+
+  <!-- DECK EDITOR -->
+  <section id="deckEditorContainer" class="mode-container">
+    <h2>🛠 Deck Editor</h2>
+
+    <form id="editorControls">
+      <input id="editorQuestion" placeholder="Question" />
+      <input id="editorAnswer" placeholder="Answer" />
+      <button type="submit" id="editorAdd">Add Card</button>
+    </form>
+
+    <h3 style="margin-top: 24px;">Deck Curation Prompt</h3>
+    <div class="bulk-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0;">
+      <div>
+        <label for="deckPromptLevel">Learner level</label>
+        <select id="deckPromptLevel">
+          <option value="A1">A1</option>
+          <option value="A2">A2</option>
+          <option value="B1">B1</option>
+          <option value="B2">B2</option>
+        </select>
+      </div>
+      <div>
+        <label for="deckPromptTopic">Topic</label>
+        <input id="deckPromptTopic" placeholder="e.g. travel, food, work" />
+      </div>
+      <div>
+        <label for="deckPromptCount">Card count</label>
+        <select id="deckPromptCount">
+          <option value="6">6 cards</option>
+          <option value="10" selected>10 cards</option>
+          <option value="15">15 cards</option>
+          <option value="20">20 cards</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="prompt-generator" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+      <button id="generateDeckPromptBtn">⚡ Generate Deck Prompt</button>
+      <button id="copyDeckPromptBtn">📋 Copy Prompt</button>
+    </div>
+
+    <textarea id="deckPromptOutput" placeholder="Your deck creation prompt will appear here..." style="min-height: 140px; width: 100%;"></textarea>
+
+    <div style="margin-top: 16px;">
+      <label for="deckImportJson" style="display: block; font-weight: bold; margin-bottom: 8px;">Paste AI deck JSON here to import:</label>
+      <textarea id="deckImportJson" placeholder='[{"question":"...","answer":"..."}]' style="min-height: 150px; width: 100%;"></textarea>
+      <button id="importDeckJsonBtn" style="margin-top: 10px;">📥 Import Deck JSON</button>
+    </div>
+
+    <h3 style="margin-top: 24px;">Cards in Deck</h3>
+    <button id="deleteDeckBtn" class="danger">🗑 Delete Deck</button>
+    <ul id="cardList"></ul>
+  </section>
+
+  <!-- STORY ANALYZER -->
+  <section id="storyAnalyzerContainer" class="mode-container">
+    
+    <!-- INPUT MODE -->
+    <div id="storyInputMode" class="story-mode">
+      <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
+        <h2 style="margin: 0; flex: 1;">📖 Story Analyzer</h2>
+        <button id="analyzeStory">🔍 Analyze Story</button>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label for="storyInput" style="display: block; font-weight: bold; margin-bottom: 8px;">Paste your story JSON here:</label>
+        <textarea id="storyInput" placeholder="Paste your story JSON response here..." style="min-height: 300px; width: 100%;"></textarea>
+      </div>
+
+      <div class="prompt-generator">
+        <h3>🧠 Generate Story Prompt (Optional)</h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0;">
+          <div>
+            <label for="promptLevel">Level:</label>
+            <select id="promptLevel">
+              <option value="A1">A1</option>
+              <option value="A2">A2</option>
+              <option value="B1">B1</option>
+              <option value="B2">B2</option>
+            </select>
+          </div>
+          <div>
+            <label for="promptLength">Length:</label>
+            <select id="promptLength">
+              <option value="250">250 words</option>
+              <option value="500">500 words</option>
+              <option value="750">750 words</option>
+              <option value="1000">1000 words</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="promptTopic">Topic:</label>
+        <input id="promptTopic" placeholder="e.g. travel, daily life, news" style="width: 100%; margin-bottom: 12px;" />
+
+        <div class="prompt-buttons">
+          <button id="generateFromTextBtn">⚡ From Text</button>
+          <button id="generatePromptBtn">⚡ Generate</button>
+          <button id="copyPromptBtn">📋 Copy</button>
+        </div>
+
+        <textarea id="promptOutput" placeholder="Your prompt will appear here..." style="min-height: 150px;"></textarea>
+      </div>
+
+      <div class="story-archive-panel" style="margin-top: 24px; background: #f8f9fb; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px;">
+          <div>
+            <h3 style="margin: 0;">🗄️ Story Archive</h3>
+            <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Review stories you analyzed previously and reopen them anytime.</p>
+          </div>
+          <button id="clearStoryArchive" class="secondary" type="button" style="padding: 8px 12px;">Clear archive</button>
+        </div>
+        <div id="storyArchiveList" style="display: grid; gap: 10px;"></div>
+        <p id="storyArchiveEmpty" style="margin: 0; color: #777;">No archived stories yet. Analyze a story to save it.</p>
+      </div>
+    </div>
+
+    <!-- REVIEW MODE -->
+    <div id="storyReviewMode" class="story-mode" style="display: none;">
+      <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+        <h2 style="margin: 0; flex: 1;">📖 Story Review</h2>
+        <button id="backToInput" class="secondary">⬅ Back to Input</button>
+      </div>
+
+      <div class="story-review-layout">
+        <!-- STORY SECTION -->
+        <div class="story-review-container">
+          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+            <button id="playPauseStory">▶️ Play</button>
+            <span id="storyPlaybackStatus" style="font-size: 14px; color: var(--text-light);">Token: <strong id="currentTokenIndex">0</strong></span>
+            <small style="color: var(--text-light);">Use ← → arrow keys to navigate</small>
+          </div>
+          <div class="story-display" id="storyDisplay"></div>
+          <button id="createDeckFromStory" style="width: 100%; margin-top: 16px;">➕ Create Deck from Unknown Words</button>
+        </div>
+
+        <!-- FLASHCARDS SECTION -->
+        <div class="story-flashcards-panel">
+          <h3>📝 Unknown Words & Translations</h3>
+          <ul id="unknownWordsList" style="list-style: none; padding: 0; margin: 0;"></ul>
+          <button id="createDeckFromStoryTokens" style="width: 100%; margin-top: 16px;">🎴 Create Flashcard Deck</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSLATION TOOLTIP -->
+    <div id="translationTooltip" class="translation-tooltip" style="display: none;">
+      <span id="tooltipWord"></span>
+      <div class="tooltip-arrow"></div>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="/js/ui.js"></script>
+  <script type="module" src="/js/data.js"></script>
+
+  <script>
+    // Language selection handler
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    });
+
+    // Story mode toggle
+    const analyzeStoryBtn = document.getElementById("analyzeStory");
+    const backToInputBtn = document.getElementById("backToInput");
+    const storyInputMode = document.getElementById("storyInputMode");
+    const storyReviewMode = document.getElementById("storyReviewMode");
+    const playPauseStory = document.getElementById("playPauseStory");
+    const currentTokenIndex = document.getElementById("currentTokenIndex");
+    const translationTooltip = document.getElementById("translationTooltip");
+    const tooltipWord = document.getElementById("tooltipWord");
+    const unknownWordsList = document.getElementById("unknownWordsList");
+
+    let isPlaying = false;
+    let currentToken = 0;
+    let storyReviewActive = false;
+    const selectedTokens = new Map();
+
+    analyzeStoryBtn.addEventListener("click", () => {
+      storyInputMode.style.display = "none";
+      storyReviewMode.style.display = "block";
+      storyReviewActive = true;
+      currentToken = 0;
+      isPlaying = false;
+      playPauseStory.textContent = "▶️ Play";
+      currentTokenIndex.textContent = "0";
+    });
+
+    backToInputBtn.addEventListener("click", () => {
+      storyReviewMode.style.display = "none";
+      storyInputMode.style.display = "block";
+      storyReviewActive = false;
+      isPlaying = false;
+      playPauseStory.textContent = "▶️ Play";
+    });
+
+    // Play/Pause toggle
+    playPauseStory.addEventListener("click", () => {
+      isPlaying = !isPlaying;
+      playPauseStory.textContent = isPlaying ? "⏸️ Pause" : "▶️ Play";
+      if (isPlaying) {
+        highlightCurrentToken();
+      }
+    });
+
+    // Arrow key navigation - move outside to be more robust
+    document.addEventListener("keydown", (e) => {
+      if (!storyReviewActive) return;
+      
+      const tokens = document.querySelectorAll(".story-token");
+      if (tokens.length === 0) return;
+      
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        currentToken = Math.max(0, currentToken - 1);
+        currentTokenIndex.textContent = currentToken;
+        highlightCurrentToken();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        currentToken = Math.min(tokens.length - 1, currentToken + 1);
+        currentTokenIndex.textContent = currentToken;
+        highlightCurrentToken();
+      }
+    });
+
+    function highlightCurrentToken() {
+      const tokens = document.querySelectorAll(".story-token");
+      tokens.forEach((token, idx) => {
+        token.classList.toggle("highlighted", idx === currentToken);
+      });
+      if (tokens[currentToken]) {
+        tokens[currentToken].scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    // Token click to add token and translation to unknown list
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("story-token")) {
+        e.stopPropagation();
+        const word = e.target.textContent.trim();
+        const translation = e.target.dataset.translation || "No translation";
+        
+        // Add to selected tokens map
+        selectedTokens.set(word, translation);
+        
+        updateUnknownWordsList();
+      }
+    });
+
+    // Disable tooltip on hover for story tokens
+    document.addEventListener("mouseover", (e) => {
+      if (e.target.classList.contains("story-token")) {
+        translationTooltip.style.display = "none";
+      }
+    });
+
+    document.addEventListener("mouseout", (e) => {
+      if (e.target.classList.contains("story-token")) {
+        translationTooltip.style.display = "none";
+      }
+    });
+
+    // Update unknown words list
+    function updateUnknownWordsList() {
+      unknownWordsList.innerHTML = "";
+      selectedTokens.forEach((translation, token) => {
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px 12px; background: var(--bg-white); border-radius: 6px; border-left: 3px solid var(--accent); margin-bottom: 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;";
+        
+        const tokenInfo = document.createElement("div");
+        tokenInfo.style.display = "flex";
+        tokenInfo.style.flexDirection = "column";
+        tokenInfo.style.gap = "4px";
+
+        const tokenSpan = document.createElement("span");
+        tokenSpan.textContent = token;
+        tokenSpan.style.fontWeight = "600";
+        tokenInfo.appendChild(tokenSpan);
+
+        const translationSpan = document.createElement("span");
+        translationSpan.textContent = translation;
+        translationSpan.style.fontSize = "12px";
+        translationSpan.style.color = "var(--text-light)";
+        tokenInfo.appendChild(translationSpan);
+
+        li.appendChild(tokenInfo);
+        
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "✕";
+        removeBtn.style.cssText = "background: none; border: none; color: var(--text-light); cursor: pointer; font-size: 16px; padding: 0; margin-left: 8px;";
+        removeBtn.addEventListener("click", () => {
+          selectedTokens.delete(token);
+          updateUnknownWordsList();
+        });
+        li.appendChild(removeBtn);
+        
+        unknownWordsList.appendChild(li);
+      });
+    }
+  </script>
+
+</body>
+
+</html>

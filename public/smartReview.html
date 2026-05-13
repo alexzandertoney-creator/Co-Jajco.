@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Review - Co? Jajco.</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+      <h1 style="margin: 0;">🧠 Smart Review</h1>
+      <button onclick="window.location.href='index.html'" class="secondary">⬅ Back</button>
+    </div>
+  </header>
+
+  <section id="smartReviewContainer" class="mode-container" style="display: flex;">
+    <div id="card" class="card">
+      <div class="card-front">
+        <p id="question"></p>
+        <button id="speakFrontBtn" title="Listen">🔊</button>
+      </div>
+      <div class="card-back">
+        <p id="answer"></p>
+        <button id="speakBackBtn" title="Listen">🔊</button>
+      </div>
+    </div>
+
+    <div id="studyControls">
+      <button id="correctBtn" class="success">✅ Correct</button>
+      <button id="incorrectBtn" class="danger">❌ Incorrect</button>
+    </div>
+
+    <div class="flashcard-controls">
+      <button id="prev">⬅ Previous</button>
+      <button id="swapSides">🔄 Swap</button>
+      <button id="next">Next ➡</button>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; margin: 16px 0;">
+      <label class="study-toggle">
+        <input type="checkbox" id="studyModeToggle" checked disabled>
+        Study Mode (Smart Review)
+      </label>
+      <select id="speakMode" style="padding: 8px 12px;">
+        <option value="off">🔇 Off</option>
+        <option value="learning">🎯 Learning</option>
+        <option value="native">🧠 Native</option>
+        <option value="both">🌍 Both</option>
+      </select>
+    </div>
+
+    <div id="cardProgress"></div>
+  </section>
+
+  <script type="module" src="smartReview.js"></script>
+  
+</body>
+
+</html>

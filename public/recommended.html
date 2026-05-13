@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recommended Decks - Co? Jajco.</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+      <h1 style="margin: 0;">📚 Recommended Decks</h1>
+      <button onclick="window.location.href='index.html'" class="secondary">⬅ Back</button>
+    </div>
+  </header>
+
+  <div class="deck-columns">
+    <div class="deck-column" id="columnPreA1">
+      <h2>Pre-A1</h2>
+    </div>
+    <div class="deck-column" id="columnA1">
+      <h2>A1</h2>
+    </div>
+    <div class="deck-column" id="columnA2">
+      <h2>A2</h2>
+    </div>
+    <div class="deck-column" id="columnPrepositions">
+      <h2>Prepositions</h2>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
+    <button id="addSelectedDecks">➕ Add Selected Decks</button>
+    <button onclick="window.location.href='index.html'" class="secondary">⬅ Back to Home</button>
+  </div>
+
+  <script type="module" src="recommended.js"></script>
+</body>
+</html>
