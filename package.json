@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Quizlet-style flashcard app with multiple modes and auto-translation",
   "main": "server.js",
+  
   "scripts": {
-    "start": "node server.js"
+    "build": "[my-framework] build --output public"
   },
   "author": "",
   "license": "ISC",
