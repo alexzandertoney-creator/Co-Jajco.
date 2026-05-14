@@ -33,23 +33,30 @@ export async function loadUser() {
     return;
   }
 
-  const res = await fetch('/api/auth/me', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
 
-  if (!res.ok) {
-    console.error('Auth failed:', res.status);
+    if (!res.ok) {
+      console.error('Auth failed:', res.status);
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = await res.json();
+    setCurrentUser(user);
+    console.log('Loaded user:', user);
+    return user;
+  } catch (error) {
+    console.error('Failed to load user:', error);
     localStorage.removeItem('token');
     window.location.href = 'login.html';
     return;
   }
-
-  const user = await res.json();
-  setCurrentUser(user);
-  console.log('Loaded user:', user);
-  return user;
 }
 
 /**
