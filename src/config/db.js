@@ -14,32 +14,26 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
-// Create tables
-pool.query(`
-DROP TABLE IF EXISTS users CASCADE
-`, (err, res) => {
-  if (err) {
-    console.error('Error dropping table:', err);
-  } else {
-    console.log('Old users table dropped');
-    
-    // Now create the table with correct column names
-    pool.query(`
-    CREATE TABLE users (
-      id SERIAL PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      "nativeLang" TEXT,
-      "learningLang" TEXT
-    )
-    `, (err, res) => {
-      if (err) {
-        console.error('Error creating table:', err);
-      } else {
-        console.log('Users table ready with correct column names');
-      }
-    });
+// Initialize database schema
+const initializeSchema = async () => {
+  try {
+    // Create table if it doesn't exist (don't drop to avoid data loss)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        "nativeLang" TEXT,
+        "learningLang" TEXT
+      )
+    `);
+    console.log('Users table ready');
+  } catch (err) {
+    console.error('Error creating table:', err);
   }
-});
+};
+
+// Initialize schema on startup
+initializeSchema();
 
 module.exports = pool;
