@@ -16,18 +16,29 @@ pool.on('error', (err) => {
 
 // Create tables
 pool.query(`
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  "nativeLang" TEXT,
-  "learningLang" TEXT
-)
+DROP TABLE IF EXISTS users CASCADE
 `, (err, res) => {
   if (err) {
-    console.error('Error creating table:', err);
+    console.error('Error dropping table:', err);
   } else {
-    console.log('Users table ready');
+    console.log('Old users table dropped');
+    
+    // Now create the table with correct column names
+    pool.query(`
+    CREATE TABLE users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      "nativeLang" TEXT,
+      "learningLang" TEXT
+    )
+    `, (err, res) => {
+      if (err) {
+        console.error('Error creating table:', err);
+      } else {
+        console.log('Users table ready with correct column names');
+      }
+    });
   }
 });
 
