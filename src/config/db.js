@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
-  nativeLang TEXT,
-  learningLang TEXT
+  "nativeLang" TEXT,
+  "learningLang" TEXT
 )
 `, (err, res) => {
   if (err) {

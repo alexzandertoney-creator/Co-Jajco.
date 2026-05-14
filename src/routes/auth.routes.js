@@ -11,7 +11,7 @@ router.post('/login', authController.login);
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT id, email, nativeLang, learningLang FROM users WHERE id = $1',
+      'SELECT id, email, "nativeLang", "learningLang" FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -35,7 +35,7 @@ router.put('/me/language', authMiddleware, async (req, res) => {
     }
 
     const result = await db.query(
-      'UPDATE users SET learningLang = $1 WHERE id = $2 RETURNING id',
+      'UPDATE users SET "learningLang" = $1 WHERE id = $2 RETURNING id',
       [learningLang, req.user.id]
     );
 

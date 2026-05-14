@@ -10,7 +10,7 @@ const register = async ({ email, password, nativeLang, learningLang }) => {
   const hashed = await bcrypt.hash(password, 10);
 
   const result = await db.query(
-    `INSERT INTO users (email, password, nativeLang, learningLang)
+    `INSERT INTO users (email, password, "nativeLang", "learningLang")
      VALUES ($1, $2, $3, $4)
      RETURNING id`,
     [email, hashed, nativeLang, learningLang]
