@@ -1,6 +1,6 @@
-import db from '../config/db.js';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+const db = require('../config/db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const register = async ({ email, password, nativeLang, learningLang }) => {
   if (!email || !password || !nativeLang || !learningLang) {
@@ -42,4 +42,4 @@ const login = async (email, password) => {
   return { token };
 };
 
-export default { register, login };
+module.exports = { register, login };

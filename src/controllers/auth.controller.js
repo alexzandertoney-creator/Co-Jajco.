@@ -1,4 +1,4 @@
-import authService from '../services/auth.service.js';
+const authService = require('../services/auth.service');
 
 const register = async (req, res) => {
   try {
@@ -19,4 +19,4 @@ const login = async (req, res) => {
   }
 };
 
-export default { register, login };
+module.exports = { register, login };

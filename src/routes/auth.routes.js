@@ -1,7 +1,7 @@
-import express from 'express';
-import authController from '../controllers/auth.controller.js';
-import authMiddleware from '../middleware/auth.middleware.js';
-import db from '../config/db.js';
+const express = require('express');
+const authController = require('../controllers/auth.controller');
+const authMiddleware = require('../middleware/auth.middleware');
+const db = require('../config/db');
 
 const router = express.Router();
 
@@ -50,6 +50,6 @@ router.put('/me/language', authMiddleware, async (req, res) => {
   }
 });
 
-export default router;;
+module.exports = router;;
 
 module.exports = router;

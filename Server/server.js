@@ -1,13 +1,9 @@
-import dotenv from 'dotenv';
-import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import authRoutes from '../src/routes/auth.routes.js';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const authRoutes = require('../src/routes/auth.routes');
 
-dotenv.config();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // Enable CORS
@@ -36,4 +32,4 @@ if (!process.env.VERCEL) {
 }
 
 // Export for Vercel serverless functions
-export default app;
+module.exports = app;
