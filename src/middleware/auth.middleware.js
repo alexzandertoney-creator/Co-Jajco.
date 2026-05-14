@@ -1,5 +1,11 @@
 const jwt = require('jsonwebtoken');
 
+// Get JWT secret with fallback for development
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+  return secret;
+};
+
 const authMiddleware = (req, res, next) => {
   const header = req.headers.authorization;
 
@@ -18,7 +24,7 @@ const authMiddleware = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, getJWTSecret());
     req.user = decoded;
     next();
   } catch (err) {

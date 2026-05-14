@@ -2,6 +2,15 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+// Get JWT secret with fallback for development
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+  if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  JWT_SECRET not set in environment variables. Using default for development only.');
+  }
+  return secret;
+};
+
 const register = async ({ email, password, nativeLang, learningLang }) => {
   if (!email || !password || !nativeLang || !learningLang) {
     throw new Error("Missing fields");
@@ -18,7 +27,7 @@ const register = async ({ email, password, nativeLang, learningLang }) => {
 
   const token = jwt.sign(
     { id: result.rows[0].id },
-    process.env.JWT_SECRET,
+    getJWTSecret(),
     { expiresIn: "7d" }
   );
 
@@ -37,7 +46,11 @@ const login = async (email, password) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw new Error('Invalid credentials');
 
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  const token = jwt.sign(
+    { id: user.id },
+    getJWTSecret(),
+    { expiresIn: "7d" }
+  );
 
   return { token };
 };
