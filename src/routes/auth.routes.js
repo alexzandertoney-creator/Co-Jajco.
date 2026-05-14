@@ -1,12 +1,12 @@
-const express = require('express');
+import express from 'express';
+import authController from '../controllers/auth.controller.js';
+import authMiddleware from '../middleware/auth.middleware.js';
+import db from '../config/db.js';
+
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-
-const authMiddleware = require('../middleware/auth.middleware');
-const db = require('../config/db');
 
 router.get('/me', authMiddleware, async (req, res) => {
   try {
@@ -49,5 +49,7 @@ router.put('/me/language', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'DB error' });
   }
 });
+
+export default router;;
 
 module.exports = router;

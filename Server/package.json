@@ -1,12 +1,12 @@
-{
-  "name": "quizlet-clone",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "Quizlet-style flashcard app with multiple modes and auto-translation",
-  "main": "Server/server.js",
-  "scripts": {
-    "start": "node Server/server.js"
-  },
+  {
+    "name": "quizlet-clone",
+    "version": "1.0.0",
+    "description": "Quizlet-style flashcard app with multiple modes and auto-translation",
+    "main": "server.js",
+    
+    "scripts": {
+      "start": "node server.js"
+    },
     "author": "",
     "license": "ISC",
     "dependencies": {

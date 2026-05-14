@@ -1,8 +1,8 @@
-const db = require('../config/db');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+import db from '../config/db.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-exports.register = async ({ email, password, nativeLang, learningLang }) => {
+const register = async ({ email, password, nativeLang, learningLang }) => {
   if (!email || !password || !nativeLang || !learningLang) {
     throw new Error("Missing fields");
   }
@@ -25,7 +25,7 @@ exports.register = async ({ email, password, nativeLang, learningLang }) => {
   return { token };
 };
 
-exports.login = async (email, password) => {
+const login = async (email, password) => {
   const result = await db.query(
     'SELECT * FROM users WHERE email = $1',
     [email]
@@ -41,3 +41,5 @@ exports.login = async (email, password) => {
 
   return { token };
 };
+
+export default { register, login };

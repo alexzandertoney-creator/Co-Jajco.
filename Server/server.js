@@ -1,9 +1,14 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const app = express();
+import dotenv from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import authRoutes from '../src/routes/auth.routes.js';
 
-const authRoutes = require('./src/routes/auth.routes');
+dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
 
 // Enable CORS
 app.use(cors({
@@ -14,10 +19,9 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
-const path = require('path');
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Health check endpoint for Vercel
 app.get('/api/health', (req, res) => {
@@ -32,4 +36,4 @@ if (!process.env.VERCEL) {
 }
 
 // Export for Vercel serverless functions
-module.exports = app;
+export default app;
