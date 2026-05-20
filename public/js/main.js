@@ -425,7 +425,7 @@ function setupDeckEditorListeners() {
   const saveStoryArchive = (archive) => {
     localStorage.setItem(getStoryArchiveKey(), JSON.stringify(archive));
   };
-  };
+
 
   const archiveStory = (data) => {
     const archive = loadStoryArchive();
@@ -663,7 +663,7 @@ function setupDeckEditorListeners() {
 
     alert(`Deck "${deckName}" created with ${selectedTokens.length} tokens!`);
   });
-}
+
 
 /**
  * Switch mode
