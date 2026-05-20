@@ -1,11 +1,13 @@
 // ============ TEST MODE ============
 
 import { testQuestion, testOptions, testFeedback, testScore } from '../ui.js';
+import { updateCardStatsFromCard } from '../data.js';
 
 export class TestMode {
   constructor() {
     this.score = 0;
     this.currentDeck = null;
+    this.currentCard = null;
   }
 
   /**
@@ -27,6 +29,7 @@ export class TestMode {
     if (!deck?.cards.length) return;
 
     const correct = deck.cards[Math.floor(Math.random() * deck.cards.length)];
+    this.currentCard = correct;
     const options = [correct.answer];
 
     while (options.length < Math.min(4, deck.cards.length)) {
@@ -58,6 +61,10 @@ export class TestMode {
 
     btn.classList.add(isCorrect ? 'correct' : 'incorrect');
     testFeedback.textContent = isCorrect ? '✅ Correct!' : `❌ Wrong! Answer: ${correct}`;
+
+    if (this.currentCard) {
+      updateCardStatsFromCard(this.currentCard, isCorrect);
+    }
 
     if (isCorrect) {
       this.score++;

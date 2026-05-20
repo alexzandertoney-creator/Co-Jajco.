@@ -200,6 +200,26 @@ export function updateCardStats(deckId, cardIndex, correct) {
 }
 
 /**
+ * Update stats for a card object directly
+ */
+export function updateCardStatsFromCard(card, correct) {
+  if (!card) return false;
+
+  if (!card.stats) {
+    card.stats = { correct: 0, incorrect: 0 };
+  }
+
+  if (correct) {
+    card.stats.correct++;
+  } else {
+    card.stats.incorrect++;
+  }
+
+  saveDecks();
+  return true;
+}
+
+/**
  * Get deck by index in filtered decks
  */
 export function getDeck(deckIndex) {

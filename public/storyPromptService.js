@@ -124,13 +124,13 @@ Card count: ${cardCount}
 
 Create a JSON array of flashcards using this structure:
 [
-  { "question": "A word or short phrase in ${learningLang}", "answer": "The translation in ${nativeLang}" }
+  { "question": "A word or short phrase in ${nativeLang}", "answer": "The translation in ${nativeLang}" }
 ]
 
 Requirements:
 - Generate exactly ${cardCount} flashcards
 - Use practical vocabulary appropriate for the learner's level
-- Keep questions in ${learningLang} and answers in ${nativeLang}
+- Keep questions in ${nativeLang} and answers in ${learningLang}
 - Do not include explanations, examples, or markdown
 - Return valid JSON only
 - Do not wrap the JSON in text or code fences

@@ -2,6 +2,7 @@
 
 import { shuffleArray } from '../utils.js';
 import { learnQuestion, learnAnswer, learnFeedback } from '../ui.js';
+import { updateCardStatsFromCard } from '../data.js';
 
 export class LearnMode {
   constructor() {
@@ -46,10 +47,16 @@ export class LearnMode {
     const userAnswer = learnAnswer.value.trim().toLowerCase();
     const correctAnswer = this.sessionCards[this.sessionIndex].answer.toLowerCase();
 
-    learnFeedback.textContent =
-      userAnswer === correctAnswer
-        ? '✅ Correct!'
-        : `❌ ${this.sessionCards[this.sessionIndex].answer}`;
+    const currentCard = this.sessionCards[this.sessionIndex];
+    const isCorrect = userAnswer === correctAnswer;
+
+    learnFeedback.textContent = isCorrect
+      ? '✅ Correct!'
+      : `❌ ${currentCard.answer}`;
+
+    if (currentCard) {
+      updateCardStatsFromCard(currentCard, isCorrect);
+    }
 
     // Disable input and move to next after delay
     learnAnswer.disabled = true;

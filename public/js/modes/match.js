@@ -3,6 +3,7 @@
 import { MATCH_GAME } from '../constants.js';
 import { shuffleArray } from '../utils.js';
 import { matchGrid, matchTimerEl, matchFeedback } from '../ui.js';
+import { updateCardStatsFromCard } from '../data.js';
 
 export class MatchMode {
   constructor() {
@@ -30,8 +31,8 @@ export class MatchMode {
     // Create question + answer entries
     this.cards = [];
     selectedCards.forEach(c => {
-      this.cards.push({ text: c.question, pair: c.answer, matched: false });
-      this.cards.push({ text: c.answer, pair: c.question, matched: false });
+      this.cards.push({ text: c.question, pair: c.answer, matched: false, sourceCard: c });
+      this.cards.push({ text: c.answer, pair: c.question, matched: false, sourceCard: c });
     });
 
     // Shuffle
@@ -77,11 +78,27 @@ export class MatchMode {
       first.btn.classList.add('matched');
       second.btn.classList.add('matched');
       matchFeedback.textContent = '✅ Match!';
+
+      const sourceCard = first.card.sourceCard || second.card.sourceCard;
+      if (sourceCard) {
+        updateCardStatsFromCard(sourceCard, true);
+      }
+
       this.selected = [];
       this.checkWin();
     } else {
       // No match
       matchFeedback.textContent = '❌ No match';
+
+      const firstSource = first.card.sourceCard;
+      const secondSource = second.card.sourceCard;
+      if (firstSource) {
+        updateCardStatsFromCard(firstSource, false);
+      }
+      if (secondSource && secondSource !== firstSource) {
+        updateCardStatsFromCard(secondSource, false);
+      }
+
       setTimeout(() => {
         first.btn.classList.remove('selected');
         second.btn.classList.remove('selected');
