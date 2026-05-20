@@ -422,135 +422,9 @@ function setupDeckEditorListeners() {
 /**
  * Setup study mode listeners
  */
-function setupStudyModeListeners() {
-  UI.studyModeToggle?.addEventListener('change', () => {
-    if (UI.studyModeToggle.checked) {
-      const deck = DataManager.getDeck(currentDeckIndex);
-      flashcardsMode.startStudyMode(deck, true);
-      setKeyboardContext(KEYBOARD_CONTEXTS.REVIEW);
-    } else {
-      flashcardsMode.endStudyMode();
-      setKeyboardContext(KEYBOARD_CONTEXTS.FLASHCARDS);
-    }
-
-    UI.updateStudyControls(UI.studyModeToggle.checked);
-    flashcardsMode.showCard(DataManager.getDeck(currentDeckIndex), DataManager.currentUser.learningLang);
-  });
-}
-
-/**
- * Setup story analyzer listeners
- */
-function setupStoryAnalyzerListeners() {
-  const analyzeStoryBtn = document.getElementById('analyzeStory');
-  const backToInputBtn = document.getElementById('backToInput');
-  const storyInputMode = document.getElementById('storyInputMode');
-  const storyReviewMode = document.getElementById('storyReviewMode');
-  const generatePromptBtn = document.getElementById('generatePromptBtn');
-  const generateFromTextBtn = document.getElementById('generateFromTextBtn');
-  const copyPromptBtn = document.getElementById('copyPromptBtn');
-  const clearStoryArchiveBtn = document.getElementById('clearStoryArchive');
-  const storyArchiveList = document.getElementById('storyArchiveList');
-  const storyArchiveEmpty = document.getElementById('storyArchiveEmpty');
-  const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
-  const promptOutput = document.getElementById('promptOutput');
-  const storyInput = document.getElementById('storyInput');
-
-  const getStoryArchiveKey = () => {
-    const user = DataManager.currentUser;
-    if (!user) return 'storyArchive:guest';
-    return `storyArchive:${user.id}:${user.learningLang}:${user.nativeLang}`;
-  };
-
-  const loadStoryArchive = () => {
-    try {
-      return JSON.parse(localStorage.getItem(getStoryArchiveKey()) || '[]');
-    } catch {
-      return [];
-    }
-  };
-
   const saveStoryArchive = (archive) => {
     localStorage.setItem(getStoryArchiveKey(), JSON.stringify(archive));
   };
-
-  const renderStoryArchive = () => {
-    const archive = loadStoryArchive();
-    if (!storyArchiveList || !storyArchiveEmpty) return;
-
-    storyArchiveList.innerHTML = '';
-
-    if (archive.length === 0) {
-      storyArchiveEmpty.style.display = 'block';
-      return;
-    }
-
-    storyArchiveEmpty.style.display = 'none';
-
-    archive.slice().reverse().forEach((entry) => {
-      const item = document.createElement('div');
-      item.style.display = 'flex';
-      item.style.justifyContent = 'space-between';
-      item.style.alignItems = 'flex-start';
-      item.style.padding = '12px 14px';
-      item.style.border = '1px solid #dde2ea';
-      item.style.borderRadius = '8px';
-      item.style.backgroundColor = '#ffffff';
-      item.style.gap = '12px';
-
-      const details = document.createElement('div');
-      details.style.flex = '1';
-
-      const title = document.createElement('div');
-      title.textContent = entry.title;
-      title.style.fontWeight = '600';
-      title.style.marginBottom = '6px';
-
-      const meta = document.createElement('div');
-      meta.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${entry.tokens.length} tokens`;
-      meta.style.fontSize = '12px';
-      meta.style.color = '#666';
-
-      details.appendChild(title);
-      details.appendChild(meta);
-
-      const actions = document.createElement('div');
-      actions.style.display = 'flex';
-      actions.style.flexDirection = 'column';
-      actions.style.gap = '8px';
-
-      const openBtn = document.createElement('button');
-      openBtn.textContent = 'Open';
-      openBtn.style.padding = '8px 12px';
-      openBtn.style.cursor = 'pointer';
-      openBtn.style.border = '1px solid #0066cc';
-      openBtn.style.borderRadius = '6px';
-      openBtn.style.backgroundColor = '#0066cc';
-      openBtn.style.color = '#fff';
-      openBtn.addEventListener('click', () => {
-        openArchivedStory(entry);
-      });
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.style.padding = '8px 12px';
-      deleteBtn.style.cursor = 'pointer';
-      deleteBtn.style.border = '1px solid #ccc';
-      deleteBtn.style.borderRadius = '6px';
-      deleteBtn.style.backgroundColor = '#fff';
-      deleteBtn.style.color = '#333';
-      deleteBtn.addEventListener('click', () => {
-        const filtered = loadStoryArchive().filter(item => item.id !== entry.id);
-        saveStoryArchive(filtered);
-        renderStoryArchive();
-      });
-
-      actions.appendChild(openBtn);
-      actions.appendChild(deleteBtn);
-      item.appendChild(details);
-      item.appendChild(actions);
-      storyArchiveList.appendChild(item);
-    });
   };
 
   const archiveStory = (data) => {
@@ -623,29 +497,20 @@ function setupStoryAnalyzerListeners() {
       selectedContainer.innerHTML = '';
     }
 
-    // Helper: render unknown tokens list on the right panel
-    const renderUnknownWords = () => {
+    // Helper: show only selected tokens in the right panel
+    const updateRightPanelFromSelection = () => {
       const listEl = document.getElementById('unknownWordsList');
-      if (!listEl) return;
+      if (!listEl || !window.storyTokenizer) return;
 
-      // Build known set from user's decks
-      const knownSet = new Set();
-      DataManager.filteredDecks.forEach(deck => {
-        (deck.cards || []).forEach(card => knownSet.add(String(card.question).toLowerCase()));
-      });
-
-      const unknownTokens = window.storyTokenizer.tokens.filter(token => {
-        const words = String(token.text).toLowerCase().replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean);
-        return words.some(w => !knownSet.has(w) && !StoryAnalyzer.isTopWord(w));
-      });
-
+      const selected = window.storyTokenizer.getSelectedTokens();
       listEl.innerHTML = '';
-      if (unknownTokens.length === 0) {
-        listEl.innerHTML = '<li style="color:#999; padding:8px">No unknown words found.</li>';
+
+      if (selected.length === 0) {
+        listEl.innerHTML = '<li style="color:#999; padding:8px">Click tokens in the story to add them here.</li>';
         return;
       }
 
-      unknownTokens.forEach(tok => {
+      selected.forEach(tok => {
         const li = document.createElement('li');
         li.style.padding = '8px';
         li.style.borderBottom = '1px solid #eee';
@@ -655,7 +520,7 @@ function setupStoryAnalyzerListeners() {
         title.style.fontWeight = '600';
 
         const trans = document.createElement('div');
-        trans.textContent = tok.translation || StoryAnalyzer.getTopWordTranslation(tok.text) || '';
+        trans.textContent = tok.translation || '';
         trans.style.fontSize = '12px';
         trans.style.color = '#666';
 
@@ -663,8 +528,8 @@ function setupStoryAnalyzerListeners() {
         li.appendChild(trans);
         li.addEventListener('click', () => {
           window.storyTokenizer.toggleToken(tok.text);
-          renderSelectedTokens('#selectedTokens', window.storyTokenizer);
-          renderUnknownWords();
+          renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
+          updateRightPanelFromSelection();
         });
 
         listEl.appendChild(li);
@@ -676,12 +541,12 @@ function setupStoryAnalyzerListeners() {
     attachStoryTTSKeyboardShortcuts(window.storyTTSPlayer, updatePlayBtn);
 
     renderInteractiveStory('#storyDisplay', window.storyTokenizer, (token, translation) => {
-      renderSelectedTokens('#selectedTokens', window.storyTokenizer);
-      renderUnknownWords();
+      renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
+      updateRightPanelFromSelection();
     });
 
-    renderSelectedTokens('#selectedTokens', window.storyTokenizer);
-    renderUnknownWords();
+    renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
+    updateRightPanelFromSelection();
     if (shouldArchive) {
       archiveStory(data);
     }

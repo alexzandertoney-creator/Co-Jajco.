@@ -175,23 +175,34 @@ export class StoryTokenizer {
    * Build map for quick token lookups
    */
   buildTokenMap() {
+    const normalize = (s) => {
+      if (!s) return '';
+      // Normalize and remove diacritics for flexible matching
+      return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    };
+
     this.tokens.forEach(token => {
-      // Store both exact case and lowercase versions for flexible matching
-      this.tokenMap.set(token.text.toLowerCase(), token);
-      if (token.text !== token.text.toLowerCase()) {
-        this.tokenMap.set(token.text, token);
-      }
+      const keyNorm = normalize(token.text);
+      const keyExact = (token.text || '').trim();
+
+      // canonical by normalized form
+      this.tokenMap.set(keyNorm, token);
+      // also store exact original as fallback
+      this.tokenMap.set(keyExact, token);
     });
+    // Keep normalizer for later use
+    this._normalizeKey = normalize;
   }
 
   /**
    * Get translation for a token
    */
   getTranslation(tokenText) {
-    // Try exact match first, then lowercase
-    let token = this.tokenMap.get(tokenText);
+    if (!tokenText) return null;
+    const key = this._normalizeKey ? this._normalizeKey(tokenText) : tokenText.toLowerCase();
+    let token = this.tokenMap.get(key);
     if (!token) {
-      token = this.tokenMap.get(tokenText.toLowerCase());
+      token = this.tokenMap.get(tokenText);
     }
     return token ? token.translation : null;
   }
@@ -200,20 +211,13 @@ export class StoryTokenizer {
    * Click a token to add to selected list
    */
   selectToken(tokenText) {
-    let token = this.tokenMap.get(tokenText);
-    if (!token) {
-      token = this.tokenMap.get(tokenText.toLowerCase());
-    }
-    
+    if (!tokenText) return;
+    const key = this._normalizeKey ? this._normalizeKey(tokenText) : tokenText.toLowerCase();
+    let token = this.tokenMap.get(key) || this.tokenMap.get(tokenText);
     if (!token) return;
 
-    // Check if already selected
     const existing = this.selectedTokens.find(t => t.text === token.text);
-    
-    if (!existing) {
-      this.selectedTokens.push(token);
-    }
-
+    if (!existing) this.selectedTokens.push(token);
     return token;
   }
 
@@ -221,56 +225,37 @@ export class StoryTokenizer {
    * Remove token from selected list
    */
   deselectToken(tokenText) {
-    // Find the token to match against
-    let tokenToMatch = this.tokenMap.get(tokenText);
-    if (!tokenToMatch) {
-      tokenToMatch = this.tokenMap.get(tokenText.toLowerCase());
-    }
-    
+    if (!tokenText) return;
+    const key = this._normalizeKey ? this._normalizeKey(tokenText) : tokenText.toLowerCase();
+    let tokenToMatch = this.tokenMap.get(key) || this.tokenMap.get(tokenText);
     if (!tokenToMatch) return;
-    
-    this.selectedTokens = this.selectedTokens.filter(
-      t => t.text !== tokenToMatch.text
-    );
+
+    this.selectedTokens = this.selectedTokens.filter(t => t.text !== tokenToMatch.text);
   }
 
   /**
    * Toggle token selection
    */
   toggleToken(tokenText) {
-    // Find the token to match against
-    let tokenToMatch = this.tokenMap.get(tokenText);
-    if (!tokenToMatch) {
-      tokenToMatch = this.tokenMap.get(tokenText.toLowerCase());
-    }
-    
+    if (!tokenText) return;
+    const key = this._normalizeKey ? this._normalizeKey(tokenText) : tokenText.toLowerCase();
+    let tokenToMatch = this.tokenMap.get(key) || this.tokenMap.get(tokenText);
     if (!tokenToMatch) return;
 
-    const existing = this.selectedTokens.find(
-      t => t.text === tokenToMatch.text
-    );
-
-    if (existing) {
-      this.deselectToken(tokenText);
-    } else {
-      this.selectToken(tokenText);
-    }
+    const existing = this.selectedTokens.find(t => t.text === tokenToMatch.text);
+    if (existing) this.deselectToken(tokenText);
+    else this.selectToken(tokenText);
   }
 
   /**
    * Check if token is selected
    */
   isTokenSelected(tokenText) {
-    let tokenToMatch = this.tokenMap.get(tokenText);
-    if (!tokenToMatch) {
-      tokenToMatch = this.tokenMap.get(tokenText.toLowerCase());
-    }
-    
+    if (!tokenText) return false;
+    const key = this._normalizeKey ? this._normalizeKey(tokenText) : tokenText.toLowerCase();
+    let tokenToMatch = this.tokenMap.get(key) || this.tokenMap.get(tokenText);
     if (!tokenToMatch) return false;
-    
-    return this.selectedTokens.some(
-      t => t.text === tokenToMatch.text
-    );
+    return this.selectedTokens.some(t => t.text === tokenToMatch.text);
   }
 
   /**
@@ -342,14 +327,31 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
 
     // Try to match tokens starting at current position
     for (const token of sortedTokens) {
-      const tokenText = token.text;
-      const storySubstr = remaining.substring(position).toLowerCase();
+      const tokenText = token.text || '';
 
-      // Check if the story text starts with this token (with possible leading space)
-      const leadingSpace = /^\s*/.exec(storySubstr)[0];
-      const afterSpace = storySubstr.substring(leadingSpace.length);
+      // Work with the raw remaining substring to preserve original characters for rendering
+      const storySubRaw = remaining.substring(position);
+      const leadingSpace = /^\s*/.exec(storySubRaw)[0];
+      const afterSpaceRaw = storySubRaw.substring(leadingSpace.length);
 
-      if (afterSpace.startsWith(tokenText.toLowerCase())) {
+      // Normalizer (diacritic-insensitive) from tokenizer if available
+      const normalizeKey = tokenizer._normalizeKey || (s => (s || '').toLowerCase());
+      const tokenNorm = normalizeKey(tokenText);
+
+      // Try to find the minimal original length that matches the normalized token
+      let matchLen = 0;
+      for (let len = 1; len <= afterSpaceRaw.length; len++) {
+        const slice = afterSpaceRaw.slice(0, len);
+        const normSlice = normalizeKey(slice);
+        if (normSlice.length >= tokenNorm.length) {
+          if (normSlice.startsWith(tokenNorm)) {
+            matchLen = len;
+          }
+          break;
+        }
+      }
+
+      if (matchLen > 0) {
         // Found a match! Add the space first if any
         if (leadingSpace) {
           const spaceSpan = document.createElement('span');
@@ -358,13 +360,12 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
           position += leadingSpace.length;
         }
 
-        // Extract text without trailing punctuation
-        const textLength = tokenText.length;
-        const textAfterToken = remaining.substring(position + textLength);
-        const trailingPunct = /^[.,!?;:—\-]*/.exec(textAfterToken)[0];
+        // Compute trailing punctuation after the matched slice
+        const matchedOriginal = remaining.substring(position, position + matchLen);
+        const textAfterToken = remaining.substring(position + matchLen);
+        const trailingPunct = /^[.,!?;:\u2014\-]*/.exec(textAfterToken)[0];
 
         // Create clickable token span using the actual story substring for display
-        const matchedOriginal = remaining.substring(position, position + textLength);
         const span = document.createElement('span');
         span.textContent = matchedOriginal;
         span.className = 'story-token';
@@ -391,7 +392,7 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
         });
 
         storyEl.appendChild(span);
-        position += textLength;
+        position += matchLen;
 
         // Add trailing punctuation
         if (trailingPunct) {
@@ -422,7 +423,7 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
 /**
  * Render selected tokens list
  */
-export function renderSelectedTokens(containerSelector, tokenizer) {
+export function renderSelectedTokens(containerSelector, tokenizer, onChange) {
   const container = document.querySelector(containerSelector);
   if (!container) return;
 
@@ -467,7 +468,8 @@ export function renderSelectedTokens(containerSelector, tokenizer) {
 
     removeBtn.addEventListener('click', () => {
       tokenizer.deselectToken(token.text);
-      renderSelectedTokens(containerSelector, tokenizer);
+      renderSelectedTokens(containerSelector, tokenizer, onChange);
+      if (onChange) onChange();
     });
 
     card.appendChild(removeBtn);
