@@ -124,7 +124,7 @@ Card count: ${cardCount}
 
 Create a JSON array of flashcards using this structure:
 [
-  { "question": "A word or short phrase in ${nativeLang}", "answer": "The translation in ${nativeLang}" }
+  { "question": "A word or short phrase in ${nativeLang}", "answer": "The translation in ${learningLang}" }
 ]
 
 Requirements:
@@ -363,20 +363,20 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
         const textAfterToken = remaining.substring(position + textLength);
         const trailingPunct = /^[.,!?;:—\-]*/.exec(textAfterToken)[0];
 
-        // Create clickable token span
+        // Create clickable token span using the actual story substring for display
+        const matchedOriginal = remaining.substring(position, position + textLength);
         const span = document.createElement('span');
-        span.textContent = tokenText;
+        span.textContent = matchedOriginal;
         span.className = 'story-token';
-        
-        // Add data-translation attribute
+
+        // Add data-translation attribute (use tokenizer's canonical token for lookup)
         const translation = tokenizer.getTranslation(tokenText);
         span.dataset.translation = translation || 'No translation available';
-        
-        // Apply known/unknown styling
+
+        // Apply known/unknown styling based on canonical token
         if (tokenizer.isTokenSelected(tokenText)) {
           span.classList.add('story-unknown');
         } else {
-          // Check if it's a known word
           span.classList.add('story-known');
         }
 
@@ -384,7 +384,7 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
           tokenizer.toggleToken(tokenText);
           span.classList.toggle('story-unknown');
           span.classList.toggle('story-known');
-          
+
           if (onTokenClick) {
             onTokenClick(tokenText, tokenizer.getTranslation(tokenText));
           }

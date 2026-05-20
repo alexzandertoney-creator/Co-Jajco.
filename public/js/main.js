@@ -6,6 +6,7 @@ import { setKeyboardContext, setupKeyboardListener, handleFlashcardsKeys } from 
 import { initTTS, setSpeakMode, speakText } from './tts.js';
 import { MODES, KEYBOARD_CONTEXTS, SPEAK_MODES } from './constants.js';
 import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
+import * as StoryAnalyzer from '../storyAnalyzer.js';
 
 import flashcardsMode from './modes/flashcards.js';
 import learnMode from './modes/learn.js';
@@ -24,6 +25,8 @@ async function initializeApp() {
   try {
     // Load user first
     await DataManager.loadUser();
+    // Load top words for story analysis (used to mark common words)
+    await StoryAnalyzer.loadTopWords();
     
     // Set language selector to user's current language
     if (DataManager.currentUser?.learningLang) {
@@ -614,29 +617,71 @@ function setupStoryAnalyzerListeners() {
       ttsContainer.innerHTML = ''; // Clear existing controls
     }
 
+    // Ensure right-side selected tokens container exists in layout (index.html)
     let selectedContainer = document.getElementById('selectedTokens');
-    if (!selectedContainer) {
-      selectedContainer = document.createElement('div');
-      selectedContainer.id = 'selectedTokens';
-      selectedContainer.style.marginTop = '20px';
-      selectedContainer.style.padding = '15px';
-      selectedContainer.style.backgroundColor = '#f5f5f5';
-      selectedContainer.style.borderRadius = '4px';
-      document.querySelector('.prompt-generator')?.appendChild(selectedContainer);
+    if (selectedContainer) {
+      selectedContainer.innerHTML = '';
     }
 
-    const { updatePlayBtn, updateCurrentTokenDisplay } = renderStoryTTSControls(
-      '#storyTTSContainer',
-      window.storyTTSPlayer
-    );
+    // Helper: render unknown tokens list on the right panel
+    const renderUnknownWords = () => {
+      const listEl = document.getElementById('unknownWordsList');
+      if (!listEl) return;
+
+      // Build known set from user's decks
+      const knownSet = new Set();
+      DataManager.filteredDecks.forEach(deck => {
+        (deck.cards || []).forEach(card => knownSet.add(String(card.question).toLowerCase()));
+      });
+
+      const unknownTokens = window.storyTokenizer.tokens.filter(token => {
+        const words = String(token.text).toLowerCase().replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean);
+        return words.some(w => !knownSet.has(w) && !StoryAnalyzer.isTopWord(w));
+      });
+
+      listEl.innerHTML = '';
+      if (unknownTokens.length === 0) {
+        listEl.innerHTML = '<li style="color:#999; padding:8px">No unknown words found.</li>';
+        return;
+      }
+
+      unknownTokens.forEach(tok => {
+        const li = document.createElement('li');
+        li.style.padding = '8px';
+        li.style.borderBottom = '1px solid #eee';
+
+        const title = document.createElement('div');
+        title.textContent = tok.text;
+        title.style.fontWeight = '600';
+
+        const trans = document.createElement('div');
+        trans.textContent = tok.translation || StoryAnalyzer.getTopWordTranslation(tok.text) || '';
+        trans.style.fontSize = '12px';
+        trans.style.color = '#666';
+
+        li.appendChild(title);
+        li.appendChild(trans);
+        li.addEventListener('click', () => {
+          window.storyTokenizer.toggleToken(tok.text);
+          renderSelectedTokens('#selectedTokens', window.storyTokenizer);
+          renderUnknownWords();
+        });
+
+        listEl.appendChild(li);
+      });
+    };
+
+    const { updatePlayBtn, updateCurrentTokenDisplay } = renderStoryTTSControls('#storyTTSContainer', window.storyTTSPlayer);
 
     attachStoryTTSKeyboardShortcuts(window.storyTTSPlayer, updatePlayBtn);
 
     renderInteractiveStory('#storyDisplay', window.storyTokenizer, (token, translation) => {
       renderSelectedTokens('#selectedTokens', window.storyTokenizer);
+      renderUnknownWords();
     });
 
     renderSelectedTokens('#selectedTokens', window.storyTokenizer);
+    renderUnknownWords();
     if (shouldArchive) {
       archiveStory(data);
     }
