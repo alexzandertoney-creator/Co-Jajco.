@@ -7,6 +7,7 @@ import { initTTS, setSpeakMode, speakText } from './tts.js';
 import { MODES, KEYBOARD_CONTEXTS, SPEAK_MODES } from './constants.js';
 import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
 import * as StoryAnalyzer from '../storyAnalyzer.js';
+import * as PublicLibrary from './publicLibrary.js';
 
 import flashcardsMode from './modes/flashcards.js';
 import learnMode from './modes/learn.js';
@@ -210,6 +211,9 @@ function setupEventListeners() {
   // Story analyzer
   setupStoryAnalyzerListeners();
 
+  // Public library
+  PublicLibrary.initPublicLibrary();
+
   // Speak mode
   UI.speakModeSelect?.addEventListener('change', () => {
     setSpeakMode(UI.speakModeSelect.value);
@@ -388,6 +392,13 @@ function setupDeckEditorListeners() {
     alert('Deck prompt copied! Paste it into your AI tool.');
   });
 
+  UI.publishDeckBtn?.addEventListener('click', () => {
+    const deck = DataManager.getDeck(currentDeckIndex);
+    if (!deck || deck.id === 'master-vocab') return alert('Select a deck first to publish.');
+    const level = prompt('Enter learning level for the public deck (A1, A2, B1, B2)', UI.deckPromptLevel.value || 'A1');
+    PublicLibrary.publishCurrentDeck(deck, level);
+  });
+
   UI.importDeckJsonBtn?.addEventListener('click', () => {
     const jsonText = UI.deckImportJson.value.trim();
     if (!jsonText) return alert('Paste deck JSON to import it.');
@@ -446,6 +457,7 @@ function setupStoryAnalyzerListeners() {
   const backToInputBtn = document.getElementById('backToInput');
   const storyInputMode = document.getElementById('storyInputMode');
   const storyReviewMode = document.getElementById('storyReviewMode');
+  const publishStoryBtn = document.getElementById('publishStoryBtn');
   const generatePromptBtn = document.getElementById('generatePromptBtn');
   const generateFromTextBtn = document.getElementById('generateFromTextBtn');
   const copyPromptBtn = document.getElementById('copyPromptBtn');
@@ -587,6 +599,8 @@ function setupStoryAnalyzerListeners() {
     }
   };
 
+  let currentStoryData = null;
+
   const showStoryReviewMode = () => {
     if (storyInputMode && storyReviewMode) {
       storyInputMode.style.display = 'none';
@@ -673,6 +687,11 @@ function setupStoryAnalyzerListeners() {
     if (shouldArchive) {
       archiveStory(data);
     }
+    currentStoryData = {
+      ...data,
+      learningLang: DataManager.currentUser.learningLang,
+      nativeLang: DataManager.currentUser.nativeLang
+    };
     showStoryReviewMode();
     return data;
   };
@@ -734,6 +753,10 @@ function setupStoryAnalyzerListeners() {
 
   analyzeStoryBtn?.addEventListener('click', analyzeCurrentStory);
   backToInputBtn?.addEventListener('click', showStoryInputMode);
+  publishStoryBtn?.addEventListener('click', () => {
+    const level = document.getElementById('promptLevel')?.value || 'A1';
+    PublicLibrary.publishCurrentStory(currentStoryData, level);
+  });
 
   clearStoryArchiveBtn?.addEventListener('click', () => {
     if (!confirm('Clear all archived stories for this language?')) return;

@@ -44,6 +44,7 @@
     <button data-mode="match">🎮 Match</button>
     <button data-mode="deckEditor">🛠 Editor</button>
     <button data-mode="storyAnalyzer">📚 Stories</button>
+    <button data-mode="publicLibrary">🌐 Public Library</button>
     <button data-mode="smartReview" onclick="window.location.href='smartReview.html'">🧠 Smart Review</button>
   </nav>
 
@@ -169,7 +170,25 @@
 
     <h3 style="margin-top: 24px;">Cards in Deck</h3>
     <button id="deleteDeckBtn" class="danger">🗑 Delete Deck</button>
+    <button id="publishDeckBtn" class="secondary" style="margin-left: 12px;">🌍 Publish Deck</button>
     <ul id="cardList"></ul>
+  </section>
+
+  <!-- PUBLIC LIBRARY -->
+  <section id="publicLibraryContainer" class="mode-container" style="display: none;">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px;">
+      <h2 style="margin:0;flex:1;">🌐 Public Library</h2>
+      <button id="refreshPublicLibraryBtn">Refresh</button>
+      <button id="publishStoryBtn" class="secondary">Publish Current Story</button>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      <select id="publicLibraryFilterLang" style="min-width:180px;"></select>
+      <select id="publicLibraryFilterLevel" style="min-width:180px;"></select>
+      <button id="publicLibraryShowDecksBtn">Decks</button>
+      <button id="publicLibraryShowStoriesBtn">Stories</button>
+    </div>
+    <div id="publicLibraryDeckList"></div>
+    <div id="publicLibraryStoryList" style="display:none;"></div>
   </section>
 
   <!-- STORY ANALYZER -->

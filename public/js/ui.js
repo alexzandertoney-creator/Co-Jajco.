@@ -67,6 +67,18 @@ export const speakStoryBtn = document.getElementById('speakStoryBtn');
 export const stopStoryBtn = document.getElementById('stopStoryBtn');
 export const ignoreBasicWords = document.getElementById('ignoreBasicWords');
 export const userLevelSelect = document.getElementById('userLevelSelect');
+export const publishStoryBtn = document.getElementById('publishStoryBtn');
+
+// Public Library
+export const publicLibraryShowDecksBtn = document.getElementById('publicLibraryShowDecksBtn');
+export const publicLibraryShowStoriesBtn = document.getElementById('publicLibraryShowStoriesBtn');
+export const publicLibraryFilterLang = document.getElementById('publicLibraryFilterLang');
+export const publicLibraryFilterLevel = document.getElementById('publicLibraryFilterLevel');
+export const refreshPublicLibraryBtn = document.getElementById('refreshPublicLibraryBtn');
+export const publicLibraryDeckList = document.getElementById('publicLibraryDeckList');
+export const publicLibraryStoryList = document.getElementById('publicLibraryStoryList');
+export const publicLibraryContainer = document.getElementById('publicLibraryContainer');
+export const publishDeckBtn = document.getElementById('publishDeckBtn');
 
 // Prompt generator
 export const promptLevel = document.getElementById('promptLevel');
@@ -90,6 +102,7 @@ export function renderMode(mode) {
     mode === MODES.MATCH ? 'matchContainer' :
     mode === MODES.DECK_EDITOR ? 'deckEditorContainer' :
     mode === MODES.STORY_ANALYZER ? 'storyAnalyzerContainer' :
+    mode === MODES.PUBLIC_LIBRARY ? 'publicLibraryContainer' :
     null;
 
   if (containerId) {

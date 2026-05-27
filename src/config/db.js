@@ -27,15 +27,42 @@ const initializeSchema = async () => {
       )
     `);
 
-    console.log('Users table ready');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public_decks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        "learning_lang" TEXT,
+        "native_lang" TEXT,
+        level TEXT,
+        cards JSONB NOT NULL,
+        author TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public_stories (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        title TEXT,
+        story TEXT NOT NULL,
+        tokens JSONB NOT NULL,
+        "learning_lang" TEXT,
+        "native_lang" TEXT,
+        level TEXT,
+        author TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    console.log('Users and public library tables ready');
   } catch (err) {
     console.error('Error creating table:', err);
   }
 };
 
-// optional
-if (!process.env.VERCEL) {
-  initializeSchema();
-}
+// Initialize schema on startup in all environments
+initializeSchema();
 
 module.exports = pool;

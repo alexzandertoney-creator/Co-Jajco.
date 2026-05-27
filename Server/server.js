@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const authRoutes = require('../src/routes/auth.routes.js');
+const libraryRoutes = require('../src/routes/library.routes.js');
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/library', libraryRoutes);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));

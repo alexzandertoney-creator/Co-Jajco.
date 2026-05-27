@@ -32,7 +32,8 @@ export const MODES = {
   TEST: 'test',
   MATCH: 'match',
   DECK_EDITOR: 'deckEditor',
-  STORY_ANALYZER: 'storyAnalyzer'
+  STORY_ANALYZER: 'storyAnalyzer',
+  PUBLIC_LIBRARY: 'publicLibrary'
 };
 
 // Keyboard contexts

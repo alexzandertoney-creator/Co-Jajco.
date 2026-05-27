@@ -229,6 +229,29 @@ button.secondary:hover {
   display: flex;
 }
 
+.public-library-card {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
+}
+
+.public-library-card h3 {
+  margin: 0;
+}
+
+.public-library-card button {
+  min-width: 120px;
+}
+
+button.active {
+  background-color: #003c7c;
+  color: #fff;
+}
+
 /* ======================
    FLASHCARDS
 ====================== */
