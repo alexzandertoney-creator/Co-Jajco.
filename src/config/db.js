@@ -33,6 +33,27 @@ const initializeSchema = async () => {
 };
 
 // Initialize schema on startup
-initializeSchema();
+const initializeSchema = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        "nativeLang" TEXT,
+        "learningLang" TEXT
+      )
+    `);
+
+    console.log('Users table ready');
+  } catch (err) {
+    console.error('Error creating table:', err);
+  }
+};
+
+// optional
+if (!process.env.VERCEL) {
+  initializeSchema();
+}
 
 module.exports = pool;
