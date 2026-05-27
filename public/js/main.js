@@ -427,6 +427,9 @@ function setupDeckEditorListeners() {
 
     deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
     alert(`Deck "${deck.name}" imported successfully!`);
+
+    const autoLevel = UI.deckPromptLevel.value || 'A1';
+    PublicLibrary.publishCurrentDeck(deck, autoLevel);
   });
 }
 
@@ -467,6 +470,7 @@ function setupStoryAnalyzerListeners() {
   const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
   const promptOutput = document.getElementById('promptOutput');
   const storyInput = document.getElementById('storyInput');
+  let currentStoryData = null;
 
   const getStoryArchiveKey = () => {
     const user = DataManager.currentUser;
@@ -692,6 +696,10 @@ function setupStoryAnalyzerListeners() {
       learningLang: DataManager.currentUser.learningLang,
       nativeLang: DataManager.currentUser.nativeLang
     };
+
+    const autoLevel = document.getElementById('promptLevel')?.value || 'A1';
+    PublicLibrary.publishCurrentStory(currentStoryData, autoLevel);
+
     showStoryReviewMode();
     return data;
   };
