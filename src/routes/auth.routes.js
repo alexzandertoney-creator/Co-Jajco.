@@ -1,14 +1,14 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
 const authMiddleware = require('../middleware/auth.middleware');
-//const db = require('../config/db');
+const db = require('../config/db');
 
 const router = express.Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 
-/*router.get('/me', authMiddleware, async (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await db.query(
       'SELECT id, email, "nativeLang", "learningLang" FROM users WHERE id = $1',
@@ -24,7 +24,7 @@ router.post('/login', authController.login);
     console.error('DB error:', err);
     res.status(500).json({ error: 'DB error' });
   }
-});*/
+});
 
 router.put('/me/language', authMiddleware, async (req, res) => {
   try {
