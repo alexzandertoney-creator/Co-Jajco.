@@ -57,7 +57,8 @@ export class MatchMode {
    * Select a card
    */
   selectCard(index, btn) {
-    if (btn.classList.contains('matched')) return;
+    if (btn.classList.contains('matched') || btn.classList.contains('selected')) return;
+    if (this.selected.length >= 2) return;
 
     btn.classList.add('selected');
     this.selected.push({ card: this.cards[index], btn });

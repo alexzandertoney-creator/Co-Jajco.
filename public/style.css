@@ -489,7 +489,8 @@ button.secondary:hover {
   cursor: default;
 }
 
-button.selected {
+#matchGrid button.selected,
+#matchGrid .match-card.selected {
   background-color: var(--accent);
   color: white;
   transform: scale(1.05);
