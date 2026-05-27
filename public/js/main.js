@@ -603,8 +603,6 @@ function setupStoryAnalyzerListeners() {
     }
   };
 
-  let currentStoryData = null;
-
   const showStoryReviewMode = () => {
     if (storyInputMode && storyReviewMode) {
       storyInputMode.style.display = 'none';
