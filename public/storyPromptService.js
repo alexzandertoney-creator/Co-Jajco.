@@ -365,33 +365,39 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
         const textAfterToken = remaining.substring(position + matchLen);
         const trailingPunct = /^[.,!?;:\u2014\-]*/.exec(textAfterToken)[0];
 
-        // Create clickable token span using the actual story substring for display
-        const span = document.createElement('span');
-        span.textContent = matchedOriginal;
-        span.className = 'story-token';
+        // Create clickable token wrapper using the actual story substring for display
+        const wrapper = document.createElement('span');
+        wrapper.className = 'story-token';
 
-        // Add data-translation attribute (use tokenizer's canonical token for lookup)
-        const translation = tokenizer.getTranslation(tokenText);
-        span.dataset.translation = translation || 'No translation available';
+        const tokenTextEl = document.createElement('span');
+        tokenTextEl.className = 'story-token-text';
+        tokenTextEl.textContent = matchedOriginal;
 
-        // Apply known/unknown styling based on canonical token
+        const translation = tokenizer.getTranslation(tokenText) || 'No translation available';
+        const translationEl = document.createElement('span');
+        translationEl.className = 'story-translation-bubble';
+        translationEl.textContent = translation;
+
         if (tokenizer.isTokenSelected(tokenText)) {
-          span.classList.add('story-unknown');
+          wrapper.classList.add('story-unknown', 'selected');
         } else {
-          span.classList.add('story-known');
+          wrapper.classList.add('story-known');
         }
 
-        span.addEventListener('click', () => {
+        wrapper.addEventListener('click', () => {
           tokenizer.toggleToken(tokenText);
-          span.classList.toggle('story-unknown');
-          span.classList.toggle('story-known');
+          wrapper.classList.toggle('story-unknown');
+          wrapper.classList.toggle('story-known');
+          wrapper.classList.toggle('selected');
 
           if (onTokenClick) {
             onTokenClick(tokenText, tokenizer.getTranslation(tokenText));
           }
         });
 
-        storyEl.appendChild(span);
+        wrapper.appendChild(tokenTextEl);
+        wrapper.appendChild(translationEl);
+        storyEl.appendChild(wrapper);
         position += matchLen;
 
         // Add trailing punctuation

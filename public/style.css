@@ -563,6 +563,7 @@ button.secondary:hover {
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
+  align-items: start;
 }
 
 .story-review-container {
@@ -583,8 +584,8 @@ button.secondary:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 600px;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
 }
 
 .story-flashcards-panel h3 {
@@ -652,6 +653,22 @@ button.secondary:hover {
   color: white;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
   border-radius: 4px;
+}
+
+.story-translation-bubble {
+  display: none;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--primary-dark);
+  font-size: 12px;
+  line-height: 1.3;
+  vertical-align: middle;
+}
+
+.story-token.selected .story-translation-bubble {
+  display: inline-block;
 }
 
 .story-unknown {
