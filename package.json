@@ -1,7 +1,6 @@
 {
   "name": "quizlet-clone",
   "version": "1.0.0",
-  "type": "module",
   "description": "Quizlet-style flashcard app with multiple modes and auto-translation",
   "main": "Server/server.js",
   "scripts": {
