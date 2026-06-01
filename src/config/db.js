@@ -76,6 +76,6 @@ const initializeSchema = async () => {
 };
 
 // Initialize schema on startup in all environments
-initializeSchema();
+//initializeSchema();
 
 module.exports = pool;
