@@ -120,9 +120,154 @@ const publishStory = async (req, res) => {
   }
 };
 
+// ============ USER DECK MANAGEMENT ============
+
+/**
+ * Get all decks for the current user
+ */
+const getUserDecks = async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, name, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", cards, created_at, updated_at 
+       FROM user_decks 
+       WHERE user_id = $1 
+       ORDER BY updated_at DESC`,
+      [req.user.id]
+    );
+
+    // Parse cards from JSONB
+    const decks = result.rows.map(deck => ({
+      ...deck,
+      cards: Array.isArray(deck.cards) ? deck.cards : JSON.parse(deck.cards || '[]')
+    }));
+
+    res.json(decks);
+  } catch (err) {
+    console.error('Error fetching user decks:', err);
+    res.status(500).json({ error: 'Unable to load decks' });
+  }
+};
+
+/**
+ * Create a new deck for the current user
+ */
+const createUserDeck = async (req, res) => {
+  try {
+    const { name, learningLang, nativeLang, cards = [] } = req.body;
+
+    if (!name || !learningLang || !nativeLang) {
+      return res.status(400).json({ error: 'Missing required fields: name, learningLang, nativeLang' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO user_decks (user_id, name, "learning_lang", "native_lang", cards)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", cards, created_at, updated_at`,
+      [req.user.id, name, learningLang, nativeLang, JSON.stringify(cards)]
+    );
+
+    const deck = result.rows[0];
+    res.json({
+      ...deck,
+      cards: Array.isArray(deck.cards) ? deck.cards : JSON.parse(deck.cards || '[]')
+    });
+  } catch (err) {
+    console.error('Error creating deck:', err);
+    res.status(500).json({ error: 'Unable to create deck' });
+  }
+};
+
+/**
+ * Update a user's deck
+ */
+const updateUserDeck = async (req, res) => {
+  try {
+    const { deckId } = req.params;
+    const { name, cards } = req.body;
+
+    if (!deckId) {
+      return res.status(400).json({ error: 'Deck ID is required' });
+    }
+
+    // Verify ownership
+    const deckCheck = await db.query(
+      'SELECT user_id FROM user_decks WHERE id = $1',
+      [deckId]
+    );
+
+    if (!deckCheck.rows.length) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+
+    if (deckCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const result = await db.query(
+      `UPDATE user_decks 
+       SET name = COALESCE($1, name), 
+           cards = COALESCE($2, cards),
+           updated_at = NOW()
+       WHERE id = $3 AND user_id = $4
+       RETURNING id, name, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", cards, created_at, updated_at`,
+      [name || null, cards ? JSON.stringify(cards) : null, deckId, req.user.id]
+    );
+
+    const deck = result.rows[0];
+    res.json({
+      ...deck,
+      cards: Array.isArray(deck.cards) ? deck.cards : JSON.parse(deck.cards || '[]')
+    });
+  } catch (err) {
+    console.error('Error updating deck:', err);
+    res.status(500).json({ error: 'Unable to update deck' });
+  }
+};
+
+/**
+ * Delete a user's deck
+ */
+const deleteUserDeck = async (req, res) => {
+  try {
+    const { deckId } = req.params;
+
+    if (!deckId) {
+      return res.status(400).json({ error: 'Deck ID is required' });
+    }
+
+    // Verify ownership
+    const deckCheck = await db.query(
+      'SELECT user_id FROM user_decks WHERE id = $1',
+      [deckId]
+    );
+
+    if (!deckCheck.rows.length) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+
+    if (deckCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    await db.query(
+      'DELETE FROM user_decks WHERE id = $1 AND user_id = $2',
+      [deckId, req.user.id]
+    );
+
+    res.json({ message: 'Deck deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting deck:', err);
+    res.status(500).json({ error: 'Unable to delete deck' });
+  }
+};
+
 module.exports = {
   listPublicDecks,
   publishDeck,
   listPublicStories,
-  publishStory
+  publishStory,
+  getUserDecks,
+  createUserDeck,
+  updateUserDeck,
+  deleteUserDeck
 };

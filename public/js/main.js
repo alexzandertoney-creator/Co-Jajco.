@@ -164,23 +164,25 @@ function setupEventListeners() {
   });
 
   // New deck
-  UI.newDeckBtn?.addEventListener('click', () => {
+  UI.newDeckBtn?.addEventListener('click', async () => {
     const name = prompt('Deck name?');
     if (!name) return;
 
-    const deck = DataManager.createDeck(
+    const deck = await DataManager.createDeck(
       name,
       DataManager.currentUser.learningLang,
       DataManager.currentUser.nativeLang
     );
 
-    DataManager.updateFilteredDecks();
-    UI.updateDeckSelect(DataManager.filteredDecks);
+    if (deck) {
+      DataManager.updateFilteredDecks();
+      UI.updateDeckSelect(DataManager.filteredDecks);
 
-    currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
-    UI.deckSelect.value = currentDeckIndex;
+      currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
+      UI.deckSelect.value = currentDeckIndex;
 
-    flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
+      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
+    }
   });
 
   // Mode switching
@@ -289,22 +291,20 @@ function setupFlashcardsListeners() {
     flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
   });
 
-  UI.correctBtn?.addEventListener('click', () => {
+  UI.correctBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
     if (flashcardsMode.studyMode) {
       flashcardsMode.markCorrect();
-      DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, true);
-      DataManager.saveDecks();
+      await DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, true);
       flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
     }
   });
 
-  UI.incorrectBtn?.addEventListener('click', () => {
+  UI.incorrectBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
     if (flashcardsMode.studyMode) {
       flashcardsMode.markIncorrect();
-      DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, false);
-      DataManager.saveDecks();
+      await DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, false);
       flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
     }
   });
@@ -348,21 +348,20 @@ function setupTestListeners() {
  * Setup deck editor listeners
  */
 function setupDeckEditorListeners() {
-  UI.editorAdd?.addEventListener('click', () => {
+  UI.editorAdd?.addEventListener('click', async () => {
     const q = UI.editorQuestion.value.trim();
     const a = UI.editorAnswer.value.trim();
     if (!q || !a) return;
 
-    deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks);
+    await deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks);
     deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
-    DataManager.saveDecks();
   });
 
-  UI.deleteDeckBtn?.addEventListener('click', () => {
+  UI.deleteDeckBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
     if (!deck || deck.id === 'master-vocab') return;
 
-    deckEditor.deleteDeck(deck.id, () => {
+    await deckEditor.deleteDeck(deck.id, () => {
       currentDeckIndex = 0;
       DataManager.updateFilteredDecks();
       UI.updateDeckSelect(DataManager.filteredDecks);
@@ -772,7 +771,8 @@ function setupStoryAnalyzerListeners() {
 
   renderStoryArchive();
 
-  createDeckFromStoryTokensBtn?.addEventListener('click', () => {
+  const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
+  createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
     if (!window.storyTokenizer) {
       alert('No story loaded. Analyze a story first!');
       return;
@@ -790,23 +790,30 @@ function setupStoryAnalyzerListeners() {
     );
     if (!deckName) return;
 
-    const newDeck = {
-      id: `deck-${Date.now()}`,
-      name: deckName,
-      learningLang: DataManager.currentUser.learningLang,
-      nativeLang: DataManager.currentUser.nativeLang,
-      cards: selectedTokens.map(token => ({
-        question: token.text,
-        answer: token.translation,
-        stats: { correct: 0, incorrect: 0 }
-      }))
-    };
+    const cards = selectedTokens.map(token => ({
+      question: token.text,
+      answer: token.translation,
+      stats: { correct: 0, incorrect: 0 }
+    }));
 
-    DataManager.filteredDecks.push(newDeck);
-    DataManager.saveDecks();
-    UI.updateDeckSelect(DataManager.filteredDecks);
+    const newDeck = await DataManager.createDeck(
+      deckName,
+      DataManager.currentUser.learningLang,
+      DataManager.currentUser.nativeLang
+    );
 
-    alert(`Deck "${deckName}" created with ${selectedTokens.length} tokens!`);
+    if (newDeck) {
+      // Add the cards to the newly created deck
+      for (const card of cards) {
+        await DataManager.addCardToDeck(newDeck.id, card.question, card.answer);
+      }
+      
+      DataManager.updateFilteredDecks();
+      UI.updateDeckSelect(DataManager.filteredDecks);
+      alert(`Deck "${deckName}" created with ${selectedTokens.length} tokens!`);
+    } else {
+      alert('Failed to create deck');
+    }
   });
 }
 

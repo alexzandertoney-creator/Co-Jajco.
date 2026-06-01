@@ -115,7 +115,7 @@ function renderDeckList(decks) {
     const importBtn = card.querySelector('[data-action="import-deck"]');
     const copyBtn = card.querySelector('[data-action="copy-deck-json"]');
 
-    importBtn?.addEventListener('click', () => importPublicDeck(deck));
+    importBtn?.addEventListener('click', async () => await importPublicDeck(deck));
     copyBtn?.addEventListener('click', () => copyText(JSON.stringify(deck, null, 2)));
 
     UI.publicLibraryDeckList.appendChild(card);
@@ -153,28 +153,38 @@ function renderStoryList(stories) {
   });
 }
 
-function importPublicDeck(deck) {
+async function importPublicDeck(deck) {
   if (!deck || !Array.isArray(deck.cards)) return;
 
-  const localDeck = {
-    id: `deck-${Date.now()}`,
-    name: deck.name,
-    learningLang: deck.learningLang || DataManager.currentUser?.learningLang || 'en',
-    nativeLang: deck.nativeLang || DataManager.currentUser?.nativeLang || 'en',
-    level: deck.level || 'Unspecified',
-    cards: deck.cards.map(card => ({
-      question: card.question || '',
-      answer: card.answer || '',
-      stats: card.stats || { correct: 0, incorrect: 0 }
-    }))
-  };
+  try {
+    const localDeckName = deck.name || 'Imported Deck';
+    const learningLang = deck.learningLang || DataManager.currentUser?.learningLang || 'en';
+    const nativeLang = deck.nativeLang || DataManager.currentUser?.nativeLang || 'en';
 
-  DataManager.decks.push(localDeck);
-  DataManager.saveDecks();
-  DataManager.updateFilteredDecks();
-  UI.updateDeckSelect(DataManager.filteredDecks);
+    // Create deck on server
+    const newDeck = await DataManager.createDeck(localDeckName, learningLang, nativeLang);
+    
+    if (!newDeck) {
+      alert('Failed to create deck on server');
+      return;
+    }
 
-  alert(`Imported public deck: ${localDeck.name}`);
+    // Add cards to the deck
+    for (const card of deck.cards) {
+      await DataManager.addCardToDeck(
+        newDeck.id,
+        card.question || '',
+        card.answer || ''
+      );
+    }
+
+    DataManager.updateFilteredDecks();
+    UI.updateDeckSelect(DataManager.filteredDecks);
+    alert(`Imported public deck: ${localDeckName}`);
+  } catch (error) {
+    console.error('Failed to import public deck:', error);
+    alert('Failed to import deck');
+  }
 }
 
 function copyText(text) {

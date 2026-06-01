@@ -3,7 +3,7 @@
 import { buildMasterVocab } from './utils.js';
 
 // Global state
-export let decks = JSON.parse(localStorage.getItem('decks')) || [];
+export let decks = [];
 export let filteredDecks = [];
 export let currentUser = null;
 
@@ -50,6 +50,10 @@ export async function loadUser() {
     const user = await res.json();
     setCurrentUser(user);
     console.log('Loaded user:', user);
+    
+    // Load user's decks after user is loaded
+    await loadDecks();
+    
     return user;
   } catch (error) {
     console.error('Failed to load user:', error);
@@ -60,10 +64,45 @@ export async function loadUser() {
 }
 
 /**
- * Save decks to localStorage
+ * Load user's decks from server
  */
-export function saveDecks() {
-  localStorage.setItem('decks', JSON.stringify(decks));
+export async function loadDecks() {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.warn('No token available');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/library/decks', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      console.error('Failed to load decks:', res.status);
+      decks = [];
+      return;
+    }
+
+    decks = await res.json();
+    console.log('Loaded decks from server:', decks);
+    updateFilteredDecks();
+  } catch (error) {
+    console.error('Failed to load decks:', error);
+    decks = [];
+  }
+}
+
+/**
+ * Save/sync decks to server (called after modifications)
+ */
+async function syncDecksToServer() {
+  // This is called after each modification
+  // Decks are already on the server, so we just refresh local state
+  await loadDecks();
 }
 
 /**
@@ -105,118 +144,362 @@ export function updateFilteredDecks() {
 }
 
 /**
- * Create new deck
+ * Create new deck (async)
  */
-export function createDeck(name, learningLang, nativeLang) {
-  const newDeck = {
-    id: Date.now(),
-    name,
-    learningLang,
-    nativeLang,
-    cards: []
-  };
-
-  decks.push(newDeck);
-  saveDecks();
-  updateFilteredDecks();
-
-  return newDeck;
-}
-
-/**
- * Delete deck by ID
- */
-export function deleteDeck(deckId) {
-  decks = decks.filter(d => d.id !== deckId);
-  saveDecks();
-  updateFilteredDecks();
-}
-
-/**
- * Add card to deck
- */
-export function addCardToDeck(deckId, question, answer) {
-  const deck = decks.find(d => d.id === deckId);
-  if (!deck) return false;
-
-  if (deck.id === 'master-vocab') return false;
-
-  deck.cards.push({
-    question,
-    answer,
-    stats: { correct: 0, incorrect: 0 }
-  });
-
-  saveDecks();
-  return true;
-}
-
-/**
- * Delete card from deck
- */
-export function deleteCardFromDeck(deckId, cardIndex) {
-  const deck = decks.find(d => d.id === deckId);
-  if (!deck) return false;
-
-  if (deck.id === 'master-vocab') return false;
-
-  deck.cards.splice(cardIndex, 1);
-  saveDecks();
-  return true;
-}
-
-/**
- * Update card in deck
- */
-export function updateCard(deckId, cardIndex, question, answer) {
-  const deck = decks.find(d => d.id === deckId);
-  if (!deck || !deck.cards[cardIndex]) return false;
-
-  deck.cards[cardIndex].question = question;
-  deck.cards[cardIndex].answer = answer;
-  saveDecks();
-  return true;
-}
-
-/**
- * Update card stats (correct/incorrect)
- */
-export function updateCardStats(deckId, cardIndex, correct) {
-  const deck = decks.find(d => d.id === deckId);
-  if (!deck || !deck.cards[cardIndex]) return false;
-
-  if (!deck.cards[cardIndex].stats) {
-    deck.cards[cardIndex].stats = { correct: 0, incorrect: 0 };
+export async function createDeck(name, learningLang, nativeLang) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return null;
   }
 
-  if (correct) {
-    deck.cards[cardIndex].stats.correct++;
-  } else {
-    deck.cards[cardIndex].stats.incorrect++;
-  }
+  try {
+    const res = await fetch('/api/library/decks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        learningLang,
+        nativeLang,
+        cards: []
+      })
+    });
 
-  saveDecks();
-  return true;
+    if (!res.ok) {
+      console.error('Failed to create deck:', res.status);
+      return null;
+    }
+
+    const newDeck = await res.json();
+    decks.push(newDeck);
+    updateFilteredDecks();
+    console.log('Created deck:', newDeck);
+    return newDeck;
+  } catch (error) {
+    console.error('Failed to create deck:', error);
+    return null;
+  }
 }
 
 /**
- * Update stats for a card object directly
+ * Delete deck by ID (async)
  */
-export function updateCardStatsFromCard(card, correct) {
+export async function deleteDeck(deckId) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return false;
+  }
+
+  if (deckId === 'master-vocab') {
+    console.warn('Cannot delete master vocab');
+    return false;
+  }
+
+  try {
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      console.error('Failed to delete deck:', res.status);
+      return false;
+    }
+
+    decks = decks.filter(d => d.id !== deckId);
+    updateFilteredDecks();
+    console.log('Deleted deck:', deckId);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete deck:', error);
+    return false;
+  }
+}
+
+/**
+ * Add card to deck (async)
+ */
+export async function addCardToDeck(deckId, question, answer) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return false;
+  }
+
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck) {
+    console.error('Deck not found:', deckId);
+    return false;
+  }
+
+  if (deckId === 'master-vocab') {
+    console.warn('Cannot add to master vocab');
+    return false;
+  }
+
+  try {
+    // Add card to local deck first
+    if (!deck.cards) deck.cards = [];
+    deck.cards.push({
+      question,
+      answer,
+      stats: { correct: 0, incorrect: 0 }
+    });
+
+    // Update on server
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        cards: deck.cards
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to update deck:', res.status);
+      // Remove the card we just added
+      deck.cards.pop();
+      return false;
+    }
+
+    const updated = await res.json();
+    deck.cards = updated.cards || [];
+    console.log('Card added to deck:', deckId);
+    return true;
+  } catch (error) {
+    console.error('Failed to add card:', error);
+    // Remove the card we tried to add
+    deck.cards.pop();
+    return false;
+  }
+}
+
+/**
+ * Delete card from deck (async)
+ */
+export async function deleteCardFromDeck(deckId, cardIndex) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return false;
+  }
+
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck) {
+    console.error('Deck not found:', deckId);
+    return false;
+  }
+
+  if (deckId === 'master-vocab') {
+    console.warn('Cannot delete from master vocab');
+    return false;
+  }
+
+  if (!deck.cards || !deck.cards[cardIndex]) {
+    console.error('Card not found at index:', cardIndex);
+    return false;
+  }
+
+  try {
+    // Remove card from local deck first
+    const removedCard = deck.cards.splice(cardIndex, 1);
+
+    // Update on server
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        cards: deck.cards
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to update deck:', res.status);
+      // Restore the card
+      deck.cards.splice(cardIndex, 0, removedCard[0]);
+      return false;
+    }
+
+    const updated = await res.json();
+    deck.cards = updated.cards || [];
+    console.log('Card deleted from deck:', deckId);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete card:', error);
+    // Restore the card
+    if (removedCard && removedCard.length) {
+      deck.cards.splice(cardIndex, 0, removedCard[0]);
+    }
+    return false;
+  }
+}
+
+/**
+ * Update card in deck (async)
+ */
+export async function updateCard(deckId, cardIndex, question, answer) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return false;
+  }
+
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck || !deck.cards || !deck.cards[cardIndex]) {
+    console.error('Card not found');
+    return false;
+  }
+
+  if (deckId === 'master-vocab') {
+    console.warn('Cannot update master vocab');
+    return false;
+  }
+
+  try {
+    // Update local deck first
+    const oldCard = { ...deck.cards[cardIndex] };
+    deck.cards[cardIndex].question = question;
+    deck.cards[cardIndex].answer = answer;
+
+    // Update on server
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        cards: deck.cards
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to update deck:', res.status);
+      // Restore old card
+      deck.cards[cardIndex] = oldCard;
+      return false;
+    }
+
+    const updated = await res.json();
+    deck.cards = updated.cards || [];
+    console.log('Card updated in deck:', deckId);
+    return true;
+  } catch (error) {
+    console.error('Failed to update card:', error);
+    // Restore old card
+    deck.cards[cardIndex] = oldCard;
+    return false;
+  }
+}
+
+/**
+ * Update card stats (correct/incorrect) (async)
+ */
+export async function updateCardStats(deckId, cardIndex, correct) {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('No token available');
+    return false;
+  }
+
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck || !deck.cards || !deck.cards[cardIndex]) {
+    console.error('Card not found');
+    return false;
+  }
+
+  try {
+    // Update local card first
+    if (!deck.cards[cardIndex].stats) {
+      deck.cards[cardIndex].stats = { correct: 0, incorrect: 0 };
+    }
+
+    if (correct) {
+      deck.cards[cardIndex].stats.correct++;
+    } else {
+      deck.cards[cardIndex].stats.incorrect++;
+    }
+
+    // Update on server
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        cards: deck.cards
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to update stats:', res.status);
+      // Revert the stat change
+      if (correct) {
+        deck.cards[cardIndex].stats.correct--;
+      } else {
+        deck.cards[cardIndex].stats.incorrect--;
+      }
+      return false;
+    }
+
+    const updated = await res.json();
+    deck.cards = updated.cards || [];
+    return true;
+  } catch (error) {
+    console.error('Failed to update card stats:', error);
+    // Revert the stat change
+    if (correct) {
+      deck.cards[cardIndex].stats.correct--;
+    } else {
+      deck.cards[cardIndex].stats.incorrect--;
+    }
+    return false;
+  }
+}
+
+/**
+ * Update stats for a card object directly (async)
+ */
+export async function updateCardStatsFromCard(card, correct, deckId) {
   if (!card) return false;
 
-  if (!card.stats) {
-    card.stats = { correct: 0, incorrect: 0 };
+  // Find which deck this card belongs to
+  if (!deckId) {
+    // Try to find it
+    const deck = decks.find(d => d.cards && d.cards.includes(card));
+    if (!deck) {
+      console.error('Could not find deck for card');
+      return false;
+    }
+    deckId = deck.id;
   }
 
-  if (correct) {
-    card.stats.correct++;
-  } else {
-    card.stats.incorrect++;
+  const cardIndex = decks.find(d => d.id == deckId)?.cards?.indexOf(card);
+  if (cardIndex === undefined || cardIndex === -1) {
+    console.error('Could not find card index');
+    return false;
   }
 
-  saveDecks();
-  return true;
+  return updateCardStats(deckId, cardIndex, correct);
 }
 
 /**

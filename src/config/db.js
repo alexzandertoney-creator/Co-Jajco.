@@ -42,6 +42,19 @@ const initializeSchema = async () => {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_decks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        "learning_lang" TEXT,
+        "native_lang" TEXT,
+        cards JSONB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS public_stories (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

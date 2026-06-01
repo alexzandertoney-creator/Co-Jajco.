@@ -71,33 +71,33 @@ export class DeckEditor {
   /**
    * Add card to deck
    */
-  addCard(deckIndex, question, answer, filteredDecks) {
+  async addCard(deckIndex, question, answer, filteredDecks) {
     const deck = filteredDecks[deckIndex];
     if (!deck || deck.id === 'master-vocab') return false;
 
-    DataManager.addCardToDeck(deck.id, question, answer);
-    editorQuestion.value = '';
-    editorAnswer.value = '';
-
-    return true;
+    const result = await DataManager.addCardToDeck(deck.id, question, answer);
+    if (result) {
+      editorQuestion.value = '';
+      editorAnswer.value = '';
+    }
+    return result;
   }
 
   /**
    * Delete card from deck
    */
-  deleteCard(deckId, cardIndex) {
+  async deleteCard(deckId, cardIndex) {
     const confirmed = confirm('Delete this card? This cannot be undone.');
     if (!confirmed) return;
 
-    DataManager.deleteCardFromDeck(deckId, cardIndex);
-    DataManager.saveDecks();
+    await DataManager.deleteCardFromDeck(deckId, cardIndex);
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 
   /**
    * Edit card
    */
-  editCard(deck, index) {
+  async editCard(deck, index) {
     const card = deck.cards[index];
     const newQuestion = prompt('Edit question:', card.question);
     if (newQuestion === null) return;
@@ -105,8 +105,7 @@ export class DeckEditor {
     const newAnswer = prompt('Edit answer:', card.answer);
     if (newAnswer === null) return;
 
-    DataManager.updateCard(deck.id, index, newQuestion, newAnswer);
-    DataManager.saveDecks();
+    await DataManager.updateCard(deck.id, index, newQuestion, newAnswer);
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 
@@ -120,7 +119,7 @@ export class DeckEditor {
     for (const word of words) {
       try {
         const translated = await this.translateWord(word, sourceLang, targetLang);
-        DataManager.addCardToDeck(deck.id, word, translated);
+        await DataManager.addCardToDeck(deck.id, word, translated);
       } catch (error) {
         console.error(`Failed to translate "${word}":`, error);
       }
@@ -140,13 +139,13 @@ export class DeckEditor {
   /**
    * Delete entire deck
    */
-  deleteDeck(deckId, onDeleteCallback) {
+  async deleteDeck(deckId, onDeleteCallback) {
     if (!deckId || deckId === 'master-vocab') return;
 
     const confirmed = confirm('Delete this entire deck? This cannot be undone.');
     if (!confirmed) return;
 
-    DataManager.deleteDeck(deckId);
+    await DataManager.deleteDeck(deckId);
     onDeleteCallback?.();
   }
 
@@ -167,17 +166,31 @@ export class DeckEditor {
    * Import deck from JSON file
    */
   async importDeck(file, learningLang, nativeLang) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
-          const deck = JSON.parse(e.target.result);
-          deck.id = Date.now();
-          deck.learningLang = learningLang;
-          deck.nativeLang = nativeLang;
+          const deckData = JSON.parse(e.target.result);
+          const deckName = deckData.name || file.name.replace('.json', '');
+          
+          // Create deck on server
+          const deck = await DataManager.createDeck(deckName, learningLang, nativeLang);
+          
+          if (!deck) {
+            reject(new Error('Failed to create deck on server'));
+            return;
+          }
 
-          DataManager.decks.push(deck);
-          DataManager.saveDecks();
+          // Add cards to the deck
+          if (Array.isArray(deckData.cards)) {
+            for (const card of deckData.cards) {
+              await DataManager.addCardToDeck(
+                deck.id,
+                card.question || '',
+                card.answer || ''
+              );
+            }
+          }
 
           resolve(deck);
         } catch (error) {
@@ -191,7 +204,7 @@ export class DeckEditor {
   /**
    * Import deck from JSON text
    */
-  importDeckFromJson(jsonString, learningLang, nativeLang, deckName) {
+  async importDeckFromJson(jsonString, learningLang, nativeLang, deckName) {
     try {
       const cards = JSON.parse(jsonString);
       if (!Array.isArray(cards)) return null;
@@ -205,16 +218,20 @@ export class DeckEditor {
 
       if (!normalizedCards.length) return null;
 
-      const deck = {
-        id: Date.now(),
-        name: deckName || `AI Curation ${new Date().toLocaleDateString()}`,
-        learningLang,
-        nativeLang,
-        cards: normalizedCards
-      };
+      const finalDeckName = deckName || `AI Curation ${new Date().toLocaleDateString()}`;
+      
+      // Create deck on server
+      const deck = await DataManager.createDeck(finalDeckName, learningLang, nativeLang);
+      
+      if (!deck) {
+        console.error('Failed to create deck on server');
+        return null;
+      }
 
-      DataManager.decks.push(deck);
-      DataManager.saveDecks();
+      // Add cards to the deck
+      for (const card of normalizedCards) {
+        await DataManager.addCardToDeck(deck.id, card.question, card.answer);
+      }
 
       return deck;
     } catch (error) {
