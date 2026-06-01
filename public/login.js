@@ -18,8 +18,6 @@ if (!res.ok) {
 
 localStorage.setItem("token", data.token);
 window.location.href = "index.html";
-
-};
 try {
   const res = await fetch("/api/auth/login", {
     method: "POST",
@@ -30,3 +28,5 @@ try {
 } catch (err) {
   alert('Login failed: ' + err.message);
 }
+
+};
