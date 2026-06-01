@@ -18,15 +18,6 @@ if (!res.ok) {
 
 localStorage.setItem("token", data.token);
 window.location.href = "index.html";
-try {
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-} catch (err) {
-  alert('Login failed: ' + err.message);
-}
+
 
 };

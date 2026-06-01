@@ -75,7 +75,9 @@ const initializeSchema = async () => {
   }
 };
 
-// Initialize schema on startup in all environments
-initializeSchema();
+// Initialize schema on startup only in local/dev environments
+if (!process.env.VERCEL) {
+  initializeSchema();
+}
 
 module.exports = pool;
