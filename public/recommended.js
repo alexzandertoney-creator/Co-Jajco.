@@ -25,21 +25,33 @@ async function loadUser() {
     return null;
   }
 
-  const res = await fetch("/api/auth/me", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    window.location.href = "login.html";
-    return;
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+      return null;
+    }
+
+    if (!res.ok) {
+      console.error("Auth validation failed for recommended page:", res.status);
+      alert("Unable to verify your login right now. Please try again later.");
+      return null;
+    }
+
+    const user = await res.json();
+    window.currentUser = user;
+    console.log("Loaded user:", user);
+    showCurrentLanguages();
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch current user for recommended page:", error);
+    alert("Cannot reach the server to verify login. Please make sure the backend is running.");
+    return null;
   }
-  
-  const user = await res.json();
-  window.currentUser = user;
-   console.log("Loaded user:", user);
-  showCurrentLanguages();
-  return user;
 }
 
 async function init() {

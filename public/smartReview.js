@@ -81,20 +81,33 @@ async function loadUser() {
 
   if (!token) {
     window.location.href = "login.html";
-    return;
+    return null;
   }
 
-  const res = await fetch("/api/auth/me", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
- if (!res.ok) {
-  localStorage.removeItem("token");
-  window.location.href = "login.html";
-  return;
-}
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+      return null;
+    }
 
-  currentUser = await res.json(); // ✅ FIXED
+    if (!res.ok) {
+      console.error("Auth validation failed for smart review page:", res.status);
+      alert("Unable to verify your login right now. Please try again later.");
+      return null;
+    }
+
+    currentUser = await res.json();
+    return currentUser;
+  } catch (error) {
+    console.error("Failed to fetch current user for smart review page:", error);
+    alert("Cannot reach the server to verify login. Please make sure the backend is running.");
+    return null;
+  }
 }
 let reviewCards = [];
 let currentIndex = 0;
