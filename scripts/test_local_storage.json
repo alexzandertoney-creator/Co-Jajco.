@@ -1,0 +1,94 @@
+[
+  {
+    "id": 1780308216217.7302,
+    "name": "Basic Greetings and Polite Expressions",
+    "learningLang": "pl",
+    "nativeLang": "en",
+    "cards": [
+      {
+        "question": "Hello / Hi",
+        "answer": "Cześć"
+      },
+      {
+        "question": "Good morning / Good day",
+        "answer": "Dzień dobry"
+      },
+      {
+        "question": "Good evening",
+        "answer": "Dobry wieczór"
+      },
+      {
+        "question": "Goodbye",
+        "answer": "Do widzenia"
+      },
+      {
+        "question": "Please",
+        "answer": "Proszę"
+      },
+      {
+        "question": "Thank you",
+        "answer": "Dziękuję"
+      },
+      {
+        "question": "Excuse me / Sorry",
+        "answer": "Przepraszam"
+      },
+      {
+        "question": "Yes",
+        "answer": "Tak"
+      },
+      {
+        "question": "No",
+        "answer": "Nie"
+      }
+    ]
+  },
+  {
+    "id": 1780308216217.5632,
+    "name": "Numbers 1-10",
+    "learningLang": "pl",
+    "nativeLang": "en",
+    "cards": [
+      {
+        "question": "One",
+        "answer": "Jeden"
+      },
+      {
+        "question": "Two",
+        "answer": "Dwa"
+      },
+      {
+        "question": "Three",
+        "answer": "Trzy"
+      },
+      {
+        "question": "Four",
+        "answer": "Cztery"
+      },
+      {
+        "question": "Five",
+        "answer": "Pięć"
+      },
+      {
+        "question": "Six",
+        "answer": "Sześć"
+      },
+      {
+        "question": "Seven",
+        "answer": "Siedem"
+      },
+      {
+        "question": "Eight",
+        "answer": "Osiem"
+      },
+      {
+        "question": "Nine",
+        "answer": "Dziewięć"
+      },
+      {
+        "question": "Ten",
+        "answer": "Dziesięć"
+      }
+    ]
+  }
+]

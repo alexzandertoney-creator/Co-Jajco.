@@ -44,7 +44,39 @@ async function loadUser() {
 
 async function init() {
   await loadUser();
-  renderRecommendedDecks();
+  await renderRecommendedDecks();
+
+  // Attach handler for the "Add Selected Decks" button after rendering
+  const addBtn = document.getElementById("addSelectedDecks");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      // Find all checkboxes in deck cards and add checked ones to storage
+      const checkboxes = document.querySelectorAll('.deck-card input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          const name = cb.dataset.name;
+          const learningLang = cb.dataset.learningLang;
+          const nativeLang = cb.dataset.nativeLang;
+          const set = recommendedVocabSets.find(s =>
+            s.name === name && s.learningLang === learningLang && s.nativeLang === nativeLang
+          );
+          if (set) addDeckToStorage(set);
+        } else {
+          // if unchecked, optionally remove from storage
+          const name = cb.dataset.name;
+          const learningLang = cb.dataset.learningLang;
+          const nativeLang = cb.dataset.nativeLang;
+          const set = recommendedVocabSets.find(s =>
+            s.name === name && s.learningLang === learningLang && s.nativeLang === nativeLang
+          );
+          if (set) removeDeckFromStorage(set);
+        }
+      });
+
+      alert("Decks updated!");
+      window.location.href = "index.html";
+    });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);
@@ -93,6 +125,10 @@ const nativeLang = user.nativeLang;  // native language
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = alreadyAdded;
+    // store identifying info so the global handler can find the set
+    checkbox.dataset.name = set.name;
+    checkbox.dataset.learningLang = set.learningLang;
+    checkbox.dataset.nativeLang = set.nativeLang;
 
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) addDeckToStorage(set);
@@ -143,11 +179,5 @@ function removeDeckFromStorage(set) {
   );
   localStorage.setItem("decks", JSON.stringify(decks));
 }
-
-// Add all selected decks button
-document.getElementById("addSelectedDecks").addEventListener("click", () => {
-  alert("Decks updated!");
-  window.location.href = "index.html";
-});
 
 // Render decks after user is loaded
