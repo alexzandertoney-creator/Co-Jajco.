@@ -771,7 +771,6 @@ function setupStoryAnalyzerListeners() {
 
   renderStoryArchive();
 
-  const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
   createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
     if (!window.storyTokenizer) {
       alert('No story loaded. Analyze a story first!');
