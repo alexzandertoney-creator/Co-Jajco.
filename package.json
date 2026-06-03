@@ -1,7 +1,7 @@
 {
-  "name": "quizlet-clone",
+  "name": "co-jajco",
   "version": "1.0.0",
-  "description": "Quizlet-style flashcard app with multiple modes and auto-translation",
+  "description": "co-jajco",
   "main": "Server/server.js",
   "scripts": {
     "start": "node Server/server.js"
