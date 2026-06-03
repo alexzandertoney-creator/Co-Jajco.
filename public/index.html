@@ -11,8 +11,8 @@
 
   <!-- HEADER -->
   <header class="app-header" style="background-color: var(--primary);"> >
-    <div style="color: var(--bg-light);" style="display: flex;  justify-content: space-between; align-items: center; width: 100%; gap: 20px;">
-      <h1 style="margin: 0;"><img src="/images/logo.png" alt="Logo" width="200" height="200"></h1>
+    <div style="display: flex;  justify-content: space-between; align-items: center; width: 100%; gap: 20px;">
+      <h1 style="margin: 0;"><img src="/images/logo.01.png" alt="Logo" width="200" height="200"></h1>
       <nav style="display: flex; gap: 12px; align-items: center;">
         <label for="languageSelect" style="color: var(--text-dark); margin: 0;">Learning Language:</label>
         <select id="languageSelect" style="width: 150px;">
@@ -38,14 +38,14 @@
 
   <!-- MODE SELECTOR -->
   <nav class="mode-selector">
-    <button data-mode="flashcards">🎴 Flashcards</button>
-    <button data-mode="learn">📖 Learn</button>
-    <button data-mode="test">✏️ Test</button>
-    <button data-mode="match">🎮 Match</button>
-    <button data-mode="deckEditor">🛠 Editor</button>
-    <button data-mode="storyAnalyzer">📚 Stories</button>
-    <button data-mode="publicLibrary">🌐 Public Library</button>
-    <button data-mode="smartReview" onclick="window.location.href='smartReview.html'">🧠 Smart Review</button>
+    <button data-mode="flashcards">Flashcards</button>
+    <button data-mode="learn">Learn</button>
+    <button data-mode="test">Test</button>
+    <button data-mode="match">Match</button>
+    <button data-mode="deckEditor">Editor</button>
+    <button data-mode="storyAnalyzer">Stories</button>
+    <button data-mode="publicLibrary">Public Library</button>
+    <button data-mode="smartReview" onclick="window.location.href='smartReview.html'">Smart Review</button>
   </nav>
 
   <!-- FLASHCARDS MODE -->
@@ -83,9 +83,9 @@
       </label>
       <select id="speakMode" style="padding: 8px 12px;">
         <option value="off">🔇 Off</option>
-        <option value="learning">🎯 Learning</option>
-        <option value="native">🧠 Native</option>
-        <option value="both">🌍 Both</option>
+        <option value="learning">Learning</option>
+        <option value="native">Native</option>
+        <option value="both">Both</option>
       </select>
     </div>
     
@@ -156,8 +156,8 @@
     </div>
 
     <div class="prompt-generator" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-      <button id="generateDeckPromptBtn">⚡ Generate Deck Prompt</button>
-      <button id="copyDeckPromptBtn">📋 Copy Prompt</button>
+      <button id="generateDeckPromptBtn">Generate Deck Prompt</button>
+      <button id="copyDeckPromptBtn">Copy Prompt</button>
     </div>
 
     <textarea id="deckPromptOutput" placeholder="Your deck creation prompt will appear here..." style="min-height: 140px; width: 100%;"></textarea>
@@ -165,19 +165,19 @@
     <div style="margin-top: 16px;">
       <label for="deckImportJson" style="display: block; font-weight: bold; margin-bottom: 8px;">Paste AI deck JSON here to import:</label>
       <textarea id="deckImportJson" placeholder='[{"question":"...","answer":"..."}]' style="min-height: 150px; width: 100%;"></textarea>
-      <button id="importDeckJsonBtn" style="margin-top: 10px;">📥 Import Deck JSON</button>
+      <button id="importDeckJsonBtn" style="margin-top: 10px;">Import Deck JSON</button>
     </div>
 
     <h3 style="margin-top: 24px;">Cards in Deck</h3>
     <button id="deleteDeckBtn" class="danger">🗑 Delete Deck</button>
-    <button id="publishDeckBtn" class="secondary" style="margin-left: 12px;">🌍 Publish Deck</button>
+    <button id="publishDeckBtn" class="secondary" style="margin-left: 12px;">Publish Deck</button>
     <ul id="cardList"></ul>
   </section>
 
   <!-- PUBLIC LIBRARY -->
   <section id="publicLibraryContainer" class="mode-container" style="display: none;">
     <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px;">
-      <h2 style="margin:0;flex:1;">🌐 Public Library</h2>
+      <h2 style="margin:0;flex:1;">Public Library</h2>
       <button id="refreshPublicLibraryBtn">Refresh</button>
       <button id="publishStoryBtn" class="secondary">Publish Current Story</button>
     </div>
@@ -197,8 +197,8 @@
     <!-- INPUT MODE -->
     <div id="storyInputMode" class="story-mode">
       <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
-        <h2 style="margin: 0; flex: 1;">📖 Story Analyzer</h2>
-        <button id="analyzeStory">🔍 Analyze Story</button>
+        <h2 style="margin: 0; flex: 1;">Story Analyzer</h2>
+        <button id="analyzeStory">Analyze Story</button>
       </div>
       
       <div style="margin-bottom: 20px;">
@@ -207,7 +207,7 @@
       </div>
 
       <div class="prompt-generator">
-        <h3>🧠 Generate Story Prompt (Optional)</h3>
+        <h3>Generate Story Prompt (Optional)</h3>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0;">
           <div>
@@ -217,6 +217,7 @@
               <option value="A2">A2</option>
               <option value="B1">B1</option>
               <option value="B2">B2</option>
+              <option value="Original">Keep Original Text</option>
             </select>
           </div>
           <div>
@@ -234,9 +235,9 @@
         <input id="promptTopic" placeholder="e.g. travel, daily life, news" style="width: 100%; margin-bottom: 12px;" />
 
         <div class="prompt-buttons">
-          <button id="generateFromTextBtn">⚡ From Text</button>
-          <button id="generatePromptBtn">⚡ Generate</button>
-          <button id="copyPromptBtn">📋 Copy</button>
+          <button id="generateFromTextBtn">From Text</button>
+          <button id="generatePromptBtn">Generate</button>
+          <button id="copyPromptBtn">Copy</button>
         </div>
 
         <textarea id="promptOutput" placeholder="Your prompt will appear here..." style="min-height: 150px;"></textarea>
@@ -245,7 +246,7 @@
       <div class="story-archive-panel" style="margin-top: 24px; background: #f8f9fb; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px;">
           <div>
-            <h3 style="margin: 0;">🗄️ Story Archive</h3>
+            <h3 style="margin: 0;">Story Archive</h3>
             <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Review stories you analyzed previously and reopen them anytime.</p>
           </div>
           <button id="clearStoryArchive" class="secondary" type="button" style="padding: 8px 12px;">Clear archive</button>
@@ -276,7 +277,7 @@
 
         <!-- FLASHCARDS SECTION -->
         <div class="story-flashcards-panel">
-          <h3>📝 Unknown Words & Translations</h3>
+          <h3>Unknown Words & Translations</h3>
           <ul id="unknownWordsList" style="list-style: none; padding: 0; margin: 0;"></ul>
           <div id="selectedTokens" style="margin-top:12px;"></div>
           <button id="createDeckFromStoryTokens" style="width: 100%; margin-top: 16px;">🎴 Create Flashcard Deck</button>
