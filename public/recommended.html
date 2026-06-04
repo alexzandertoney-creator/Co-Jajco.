@@ -10,19 +10,21 @@
   <header class="app-header" style="background-color: var(--primary);">
     <div style="display: flex;  justify-content: space-between; align-items: center; width: 100%; gap: 20px;">
       <h1 style="margin: 0;"><img src="/images/logo.01.png" alt="Logo" width="200" height="200"></h1>
-      <nav style="display: flex; gap: 12px; align-items: center;">
+      <nav style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <label for="languageSelect" style="color: var(--text-dark); margin: 0;">Learning Language:</label>
+          <select id="languageSelect" style="width: 150px;">
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="pl">Polish</option>
+            <option value="jp">Japanese</option>
+            <option value="it">Italian</option>
+            <option value="en">English</option>
+          </select>
+          <button id="logoutBtn" class="secondary">Logout</button>
+        </div>
         <button onclick="window.location.href='index.html'" class="secondary">⬅ Home</button>
-        <label for="languageSelect" style="color: var(--text-dark); margin: 0;">Learning Language:</label>
-        <select id="languageSelect" style="width: 150px;">
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="pl">Polish</option>
-          <option value="jp">Japanese</option>
-          <option value="it">Italian</option>
-          <option value="en">English</option>
-        </select>
-        <button id="logoutBtn" class="secondary">Logout</button>
       </nav>
     </div>
   </header>
