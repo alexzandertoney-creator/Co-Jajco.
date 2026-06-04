@@ -267,6 +267,9 @@ button.active {
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
 }
 
 /* ======================
@@ -285,6 +288,7 @@ button.active {
   transition: transform 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   cursor: pointer;
   will-change: transform;
+  margin: 0 auto;
 }
 
 .card.flipped {
@@ -362,6 +366,7 @@ button.active {
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .flashcard-controls button {
@@ -373,6 +378,8 @@ button.active {
   font-size: 14px;
   color: var(--text-light);
   font-weight: 500;
+  width: 100%;
+  text-align: center;
 }
 
 /* ======================
@@ -384,6 +391,7 @@ button.active {
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .study-mode #studyControls {
