@@ -29,28 +29,34 @@
     </div>
   </header>
 
-  <div class="deck-columns">
-    <details class="deck-column">
-      <summary>Pre-A1</summary>
-      <div class="deck-list" id="columnPreA1"></div>
-    </details>
-    <details class="deck-column">
-      <summary>A1</summary>
-      <div class="deck-list" id="columnA1"></div>
-    </details>
-    <details class="deck-column">
-      <summary>A2</summary>
-      <div class="deck-list" id="columnA2"></div>
-    </details>
-    <details class="deck-column">
-      <summary>Prepositions</summary>
-      <div class="deck-list" id="columnPrepositions"></div>
-    </details>
-  </div>
+  <div class="recommended-layout">
+    <div class="recommended-panel">
+      <div class="deck-columns">
+        <details class="deck-column">
+          <summary>Pre-A1</summary>
+          <div class="deck-list" id="columnPreA1"></div>
+        </details>
+        <details class="deck-column">
+          <summary>A1</summary>
+          <div class="deck-list" id="columnA1"></div>
+        </details>
+        <details class="deck-column">
+          <summary>A2</summary>
+          <div class="deck-list" id="columnA2"></div>
+        </details>
+        <details class="deck-column">
+          <summary>Prepositions</summary>
+          <div class="deck-list" id="columnPrepositions"></div>
+        </details>
+      </div>
+    </div>
 
-  <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
-    <button id="addSelectedDecks">➕ Add Selected Decks</button>
-    <button onclick="window.location.href='index.html'" class="secondary">⬅ Back to Home</button>
+    <aside class="recommended-sidebar">
+      <div class="sidebar-actions">
+        <button id="addSelectedDecks">➕ Add Selected Decks</button>
+        <button onclick="window.location.href='index.html'" class="secondary">⬅ Back to Home</button>
+      </div>
+    </aside>
   </div>
 
   <script type="module" src="recommended.js"></script>
