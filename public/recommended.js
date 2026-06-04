@@ -125,10 +125,9 @@ const nativeLang = user.nativeLang;  // native language
     console.warn("Recommended decks DOM not ready yet");
     return;
   }
-  // Clear columns but keep headings
+  // Clear deck lists before rendering
   [colPreA1, colA1, colA2, colPrepositions].forEach(col => {
-    const heading = col.querySelector("h2")?.textContent || "";
-    col.innerHTML = `<h2>${heading}</h2>`;
+    col.innerHTML = "";
   });
 
   const decksInStorage = JSON.parse(localStorage.getItem("decks") || "[]");
@@ -172,6 +171,15 @@ const nativeLang = user.nativeLang;  // native language
     else if (set.category === "A1") colA1.appendChild(card);
     else if (set.category === "A2") colA2.appendChild(card);
     else if (set.category === "Prepositions") colPrepositions.appendChild(card);
+  });
+
+  [colPreA1, colA1, colA2, colPrepositions].forEach(col => {
+    if (!col.hasChildNodes()) {
+      const emptyMessage = document.createElement('div');
+      emptyMessage.className = 'deck-empty';
+      emptyMessage.textContent = 'No recommended decks are available for this category right now.';
+      col.appendChild(emptyMessage);
+    }
   });
 }
 
