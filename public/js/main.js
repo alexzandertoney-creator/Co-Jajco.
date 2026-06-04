@@ -30,9 +30,13 @@ async function initializeApp() {
     await StoryAnalyzer.loadTopWords();
     
     // Set language selector to user's current language
-    if (DataManager.currentUser?.learningLang) {
-      UI.languageSelect.value = DataManager.currentUser.learningLang;
-    }
+      // Prefer a value stored in localStorage (keeps pages in sync across tabs)
+      const storedLang = localStorage.getItem('learningLang');
+      if (storedLang) {
+        UI.languageSelect.value = storedLang;
+      } else if (DataManager.currentUser?.learningLang) {
+        UI.languageSelect.value = DataManager.currentUser.learningLang;
+      }
     
     // Load decks for user
     DataManager.updateFilteredDecks();
@@ -103,6 +107,8 @@ function setupEventListeners() {
   // Language selection
   UI.languageSelect?.addEventListener('change', async () => {
     const selectedLang = UI.languageSelect.value;
+    // Persist selection locally so other pages/tabs update
+    try { localStorage.setItem('learningLang', selectedLang); } catch {}
     
     try {
       // Update language on server
@@ -147,9 +153,16 @@ function setupEventListeners() {
   });
 
   // Load saved language
-  if (DataManager.currentUser?.learningLang) {
-    UI.languageSelect.value = DataManager.currentUser.learningLang;
-  }
+  // Ensure select matches localStorage if changed elsewhere
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'learningLang' && e.newValue) {
+      if (UI.languageSelect && UI.languageSelect.value !== e.newValue) {
+        UI.languageSelect.value = e.newValue;
+        // Programmatically trigger change so server and app state update
+        UI.languageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  });
 
   // Deck selection
   UI.deckSelect?.addEventListener('change', (e) => {

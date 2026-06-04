@@ -334,3 +334,19 @@ cardEl.addEventListener("click", (e) => {
   
   flipCard();
 });
+
+// Reload page when learning language changes elsewhere so review set updates
+window.addEventListener('storage', (e) => {
+  if (e.key === 'learningLang') {
+    try { location.reload(); } catch (err) { /* ignore */ }
+  }
+});
+
+// Logout button handler (clears token and redirects)
+document.addEventListener('DOMContentLoaded', () => {
+  const lb = document.getElementById('logoutBtn');
+  if (lb) lb.addEventListener('click', () => {
+    localStorage.removeItem('token');
+    window.location.href = 'login.html';
+  });
+});

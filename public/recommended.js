@@ -92,6 +92,21 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+// Keep page in sync if learning language changes in another tab/page
+window.addEventListener('storage', (e) => {
+  if (e.key === 'learningLang') {
+    try { location.reload(); } catch (err) { /* ignore */ }
+  }
+});
+
+// Logout button handler (clears token and redirects)
+document.addEventListener('DOMContentLoaded', () => {
+  const lb = document.getElementById('logoutBtn');
+  if (lb) lb.addEventListener('click', () => {
+    localStorage.removeItem('token');
+    window.location.href = 'login.html';
+  });
+});
 // Render recommended decks
 async function renderRecommendedDecks() {
   const user = window.currentUser;
