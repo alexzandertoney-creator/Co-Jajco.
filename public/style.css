@@ -661,6 +661,8 @@ button.active {
   font-size: 18px;
   box-shadow: var(--shadow);
   word-spacing: 0.2em;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .story-token {
