@@ -328,6 +328,8 @@ button.active {
   color: var(--primary-dark);
   font-weight: 500;
   line-height: 1.4;
+  white-space: pre-wrap;
+  text-align: left;
 }
 
 .card-front button,
