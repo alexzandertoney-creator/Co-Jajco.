@@ -713,12 +713,12 @@ button.active {
 }
 
 .story-known {
-  color: var(--success);
+  color: var(--text-dark);
   font-weight: 500;
 }
 
 .story-known:hover {
-  background: var(--success);
+  background: var(--accent-light);
   color: white;
 }
 

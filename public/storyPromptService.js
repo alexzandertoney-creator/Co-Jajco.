@@ -22,6 +22,7 @@ The story should:
 - Be natural and realistic (not robotic)
 - Use mostly known vocabulary
 - Introduce 15–30 new useful words or phrases based on the topic
+- PARAGRAPH STRUCTURE: Divide the story into 3–5 short, clear paragraphs for easy reading. Do not output a single wall of text.
 
 New vocabulary:
 - Must be relevant and practical
@@ -79,6 +80,8 @@ ${simplifySection}
 - Make it natural and conversational
 
 - Extract useful vocabulary
+
+- STRUCTURAL PRESERVATION: You must strictly preserve the original paragraph structure, stanzas, and line breaks (\n) of the source text inside the JSON "story" string. Do not collapse lines into a single block of text.
 
 
 TEXT:
