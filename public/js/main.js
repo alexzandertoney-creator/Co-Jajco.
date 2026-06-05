@@ -749,7 +749,9 @@ function setupStoryAnalyzerListeners() {
     }
 
     const level = document.getElementById('promptLevel').value;
-    let simplify = confirm(`Do you want to simplify the text to level ${level}?\n\n"OK" = Simplify\n"Cancel" = Keep original text`);
+    // Use the Level select to decide whether to simplify.
+    // If user selected the "Original" option, keep the original text (no simplification).
+    const simplify = level !== 'Original';
 
     const prompt = generateTextTokenizationPrompt({
       rawText,
