@@ -777,7 +777,20 @@ function setupStoryAnalyzerListeners() {
   backToInputBtn?.addEventListener('click', showStoryInputMode);
   publishStoryBtn?.addEventListener('click', () => {
     const level = document.getElementById('promptLevel')?.value || 'A1';
-    PublicLibrary.publishCurrentStory(currentStoryData, level);
+    const userTitle = prompt('Enter a title or description for this story (e.g., "Daily Routine", "Coffee Shop Adventure"):', '')?.trim();
+    if (userTitle !== null && userTitle !== undefined) {
+      let finalTitle;
+      if (userTitle) {
+        finalTitle = userTitle;
+      } else {
+        // Use story preview as backup if no title provided
+        const storyPreview = currentStoryData?.story 
+          ? currentStoryData.story.slice(0, 70).replace(/\s+/g, ' ').trim() 
+          : 'Shared story';
+        finalTitle = storyPreview + (currentStoryData?.story.length > 70 ? '…' : '');
+      }
+      PublicLibrary.publishCurrentStory(currentStoryData, level, finalTitle);
+    }
   });
 
   clearStoryArchiveBtn?.addEventListener('click', () => {

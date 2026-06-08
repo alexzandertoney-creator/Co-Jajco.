@@ -235,7 +235,7 @@ export async function publishCurrentDeck(deck, level) {
   }
 }
 
-export async function publishCurrentStory(data, level) {
+export async function publishCurrentStory(data, level, title) {
   if (!data?.story || !Array.isArray(data.tokens)) {
     alert('No story loaded to publish. Analyze a story first.');
     return;
@@ -243,8 +243,9 @@ export async function publishCurrentStory(data, level) {
 
   try {
     const token = localStorage.getItem('token');
+    const finalTitle = title || `Story ${new Date().toLocaleDateString()}`;
     const payload = {
-      title: `Story ${new Date().toLocaleDateString()}`,
+      title: finalTitle,
       story: data.story,
       tokens: data.tokens,
       learningLang: data.learningLang || DataManager.currentUser?.learningLang || 'en',
