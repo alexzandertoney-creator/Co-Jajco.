@@ -45,7 +45,7 @@ function getFilters() {
 
 async function loadPublicLibrary() {
   if (!UI.refreshPublicLibraryBtn) return;
-  UI.showLoading(UI.refreshPublicLibraryBtn, true);
+ 
 
   try {
     const filters = getFilters();
@@ -60,7 +60,7 @@ async function loadPublicLibrary() {
     console.error('Failed to load public library:', error);
     alert('Unable to load public library. Try again later.');
   } finally {
-    UI.showLoading(UI.refreshPublicLibraryBtn, false);
+    
   }
 }
 
