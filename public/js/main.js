@@ -604,7 +604,7 @@ function setupStoryAnalyzerListeners() {
     if (!entry || !entry.story || !Array.isArray(entry.tokens)) return;
     const json = JSON.stringify({ story: entry.story, tokens: entry.tokens });
     storyInput.value = json;
-    analyzeStoryData(json, false);
+    analyzeStoryData(json, false, false);
     showStoryReviewMode();
   };
 
@@ -622,7 +622,7 @@ function setupStoryAnalyzerListeners() {
     }
   };
 
-  const analyzeStoryData = (rawText, shouldArchive = true) => {
+  const analyzeStoryData = (rawText, shouldArchive = true, shouldPublish = true) => {
     const data = parseStoryResponse(rawText);
 
     if (!data) {
@@ -708,7 +708,9 @@ function setupStoryAnalyzerListeners() {
     };
 
     const autoLevel = document.getElementById('promptLevel')?.value || 'A1';
-    PublicLibrary.publishCurrentStory(currentStoryData, autoLevel);
+    if (shouldPublish) {
+      PublicLibrary.publishCurrentStory(currentStoryData, autoLevel);
+    }
 
     showStoryReviewMode();
     return data;
