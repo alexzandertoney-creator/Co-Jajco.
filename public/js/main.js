@@ -584,9 +584,10 @@ function setupStoryAnalyzerListeners() {
   const archiveStory = (data) => {
     const archive = loadStoryArchive();
     const storyPreview = data.story ? data.story.slice(0, 70).replace(/\s+/g, ' ') : 'Saved story';
+    const titlePart = data.title || storyPreview;
     const entry = {
       id: `story-${Date.now()}`,
-      title: `Story ${new Date().toLocaleString()} - ${storyPreview}${data.story.length > 70 ? '…' : ''}`,
+      title: `${titlePart} ${new Date().toLocaleString()}${data.story && data.story.length > 70 && !data.title ? '…' : ''}`,
       story: data.story,
       tokens: data.tokens,
       createdAt: new Date().toISOString()
@@ -709,7 +710,8 @@ function setupStoryAnalyzerListeners() {
 
     const autoLevel = document.getElementById('promptLevel')?.value || 'A1';
     if (shouldPublish) {
-      PublicLibrary.publishCurrentStory(currentStoryData, autoLevel);
+      const autoTitle = data.title ? `${data.title} ${new Date().toLocaleDateString()}` : undefined;
+      PublicLibrary.publishCurrentStory(currentStoryData, autoLevel, autoTitle);
     }
 
     showStoryReviewMode();
@@ -777,7 +779,8 @@ function setupStoryAnalyzerListeners() {
   backToInputBtn?.addEventListener('click', showStoryInputMode);
   publishStoryBtn?.addEventListener('click', () => {
     const level = document.getElementById('promptLevel')?.value || 'A1';
-    const userTitle = prompt('Enter a title or description for this story (e.g., "Daily Routine", "Coffee Shop Adventure"):', '')?.trim();
+    const defaultTitle = currentStoryData?.title || '';
+    const userTitle = prompt('Enter a title or description for this story (e.g., "Daily Routine", "Coffee Shop Adventure"):', defaultTitle)?.trim();
     if (userTitle !== null && userTitle !== undefined) {
       let finalTitle;
       if (userTitle) {

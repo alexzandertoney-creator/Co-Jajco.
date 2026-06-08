@@ -41,6 +41,7 @@ Interactive design:
 OUTPUT FORMAT (STRICT JSON):
 
 {
+  "title": "A catchy title for the story",
   "story": "FULL STORY TEXT HERE",
   "tokens": [
     { "text": "token1", "translation": "..." },
