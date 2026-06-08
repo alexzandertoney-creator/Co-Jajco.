@@ -715,9 +715,11 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   prevBtn.textContent = '⏮ Previous';
   prevBtn.style.padding = '8px 12px';
   prevBtn.style.cursor = 'pointer';
-  prevBtn.style.border = '1px solid #ccc';
+  prevBtn.style.border = '1px solid #0066cc';
   prevBtn.style.borderRadius = '4px';
-  prevBtn.style.backgroundColor = '#fff';
+  prevBtn.style.backgroundColor = '#0066cc';
+  prevBtn.style.color = 'white';
+  prevBtn.style.fontWeight = 'bold';
   prevBtn.addEventListener('click', () => {
     ttsPlayer.previousToken();
     updateCurrentTokenDisplay();
