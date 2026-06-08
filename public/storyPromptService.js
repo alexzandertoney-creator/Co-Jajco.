@@ -772,9 +772,12 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   stopBtn.textContent = '⏹ Stop';
   stopBtn.style.padding = '8px 12px';
   stopBtn.style.cursor = 'pointer';
-  stopBtn.style.border = '1px solid #ccc';
+  stopBtn.style.border = '1px solid #0066cc';
   stopBtn.style.borderRadius = '4px';
-  stopBtn.style.backgroundColor = '#fff';
+  stopBtn.style.backgroundColor = '#0066cc';
+  stopBtn.style.color = 'white';
+  stopBtn.style.fontWeight = 'bold';
+
   stopBtn.addEventListener('click', () => {
     ttsPlayer.stopStory();
     updatePlayBtn();
@@ -786,9 +789,12 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   nextBtn.textContent = 'Next ⏭';
   nextBtn.style.padding = '8px 12px';
   nextBtn.style.cursor = 'pointer';
-  nextBtn.style.border = '1px solid #ccc';
+  nextBtn.style.border = '1px solid #0066cc';
   nextBtn.style.borderRadius = '4px';
-  nextBtn.style.backgroundColor = '#fff';
+  nextBtn.style.backgroundColor = '#0066cc';
+  nextBtn.style.color = 'white';
+  nextBtn.style.fontWeight = 'bold';
+
   nextBtn.addEventListener('click', () => {
     ttsPlayer.nextToken();
     updateCurrentTokenDisplay();
