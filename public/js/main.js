@@ -640,7 +640,7 @@ function setupStoryAnalyzerListeners() {
     if (!ttsContainer) {
       ttsContainer = document.createElement('div');
       ttsContainer.id = 'storyTTSContainer';
-      document.querySelector('.prompt-generator')?.appendChild(ttsContainer);
+      document.querySelector('.story-review-container')?.appendChild(ttsContainer);
     } else {
       ttsContainer.innerHTML = ''; // Clear existing controls
     }
