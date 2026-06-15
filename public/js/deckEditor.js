@@ -228,9 +228,13 @@ export class DeckEditor {
         return null;
       }
 
-      // Add cards to the deck
-      for (const card of normalizedCards) {
-        await DataManager.addCardToDeck(deck.id, card.question, card.answer);
+      // Add cards to the deck in batches to avoid timeout on Vercel
+      const batchSize = 50;
+      for (let i = 0; i < normalizedCards.length; i += batchSize) {
+        const batch = normalizedCards.slice(i, i + batchSize);
+        for (const card of batch) {
+          await DataManager.addCardToDeck(deck.id, card.question, card.answer);
+        }
       }
 
       return deck;
