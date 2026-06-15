@@ -268,11 +268,15 @@ export async function addCardToDeck(deckId, question, answer) {
     });
 
     if (!res.ok) {
-      console.error('Failed to update deck:', res.status);
-      // Remove the card we just added
-      deck.cards.pop();
-      return false;
-    }
+  console.error(
+    'Failed to update deck:',
+    res.status,
+    await res.text()
+  );
+
+  deck.cards.pop();
+  return false;
+}
 
     const updated = await res.json();
     deck.cards = updated.cards || [];

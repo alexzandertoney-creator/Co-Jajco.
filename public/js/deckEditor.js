@@ -80,6 +80,7 @@ export class DeckEditor {
       editorQuestion.value = '';
       editorAnswer.value = '';
     }
+  
     return result;
   }
 
@@ -189,6 +190,11 @@ export class DeckEditor {
                 card.question || '',
                 card.answer || ''
               );
+                console.log(
+    'Importing:',
+    card.question,
+    success
+  );
             }
           }
 
@@ -233,8 +239,25 @@ export class DeckEditor {
       for (let i = 0; i < normalizedCards.length; i += batchSize) {
         const batch = normalizedCards.slice(i, i + batchSize);
         for (const card of batch) {
-          await DataManager.addCardToDeck(deck.id, card.question, card.answer);
-        }
+  const success = await DataManager.addCardToDeck(
+    deck.id,
+    card.question,
+    card.answer
+  );
+
+  console.log(
+    `Imported "${card.question}"`,
+    success
+  );
+
+  if (!success) {
+    console.error(
+      'Failed on card:',
+      card
+    );
+    break;
+  }
+}
       }
 
       return deck;
