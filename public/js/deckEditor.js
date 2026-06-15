@@ -207,7 +207,7 @@ export class DeckEditor {
     });
   }
 
-  /**
+/**
    * Import deck from JSON text
    */
   async importDeckFromJson(jsonString, learningLang, nativeLang, deckName) {
@@ -234,30 +234,31 @@ export class DeckEditor {
         return null;
       }
 
-      // Add cards to the deck in batches to avoid timeout on Vercel
-      const batchSize = 50;
+      // Process cards sequentially (or in controlled, small batches)
+      // Dropping batchSize down to 25 keeps Vercel from timing out
+      const batchSize = 25; 
+      
       for (let i = 0; i < normalizedCards.length; i += batchSize) {
         const batch = normalizedCards.slice(i, i + batchSize);
-        for (const card of batch) {
-  const success = await DataManager.addCardToDeck(
-    deck.id,
-    card.question,
-    card.answer
-  );
+        
+        // Use Promise.all to cleanly resolve the current batch simultaneously,
+        // then 'await' it so the outer loop doesn't rush forward.
+        const batchPromises = batch.map(card => 
+          DataManager.addCardToDeck(deck.id, card.question, card.answer)
+            .then(success => {
+              console.log(`Imported "${card.question}"`, success);
+              if (!success) throw card; // Throw the card object to catch it below
+            })
+        );
 
-  console.log(
-    `Imported "${card.question}"`,
-    success
-  );
-
-  if (!success) {
-    console.error(
-      'Failed on card:',
-      card
-    );
-    break;
-  }
-}
+        try {
+          await Promise.all(batchPromises);
+          // Small artificial pause (throttle) to let Vercel/DB catch its breath
+          await new Promise(resolve => setTimeout(resolve, 300)); 
+        } catch (failedCard) {
+          console.error('Failed on card:', failedCard);
+          break; // Stop importing if a request fails
+        }
       }
 
       return deck;
