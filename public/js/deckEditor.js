@@ -230,31 +230,40 @@ export class DeckEditor {
         return null;
       }
 
-      // Process cards sequentially (or in controlled, small batches)
-      // Dropping batchSize down to 25 keeps Vercel from timing out
-      const batchSize = 25; 
-      
-      for (let i = 0; i < normalizedCards.length; i += batchSize) {
-        const batch = normalizedCards.slice(i, i + batchSize);
-        
-        // Use Promise.all to cleanly resolve the current batch simultaneously,
-        // then 'await' it so the outer loop doesn't rush forward.
-        const batchPromises = batch.map(card => 
-          DataManager.addCardToDeck(deck.id, card.question, card.answer)
-            .then(success => {
-              console.log(`Imported "${card.question}"`, success);
-              if (!success) throw card; // Throw the card object to catch it below
-            })
-        );
+      // Process cards sequentially with retries and a small delay to avoid
+      // backend timeouts or rate limits. Concurrent PUTs can cause overwrites
+      // on some hosting environments, so a sequential approach is more robust.
+      const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+      const maxRetries = 3;
+      const delayBetweenCards = 200; // ms
+      const failed = [];
 
-        try {
-          await Promise.all(batchPromises);
-          // Small artificial pause (throttle) to let Vercel/DB catch its breath
-          await new Promise(resolve => setTimeout(resolve, 300)); 
-        } catch (failedCard) {
-          console.error('Failed on card:', failedCard);
-          break; // Stop importing if a request fails
+      for (const card of normalizedCards) {
+        let success = false;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            success = await DataManager.addCardToDeck(deck.id, card.question, card.answer);
+            console.log(`Imported "${card.question}"`, success, `(attempt ${attempt})`);
+            if (success) break;
+          } catch (err) {
+            console.error(`Error importing "${card.question}" on attempt ${attempt}:`, err);
+          }
+
+          // Exponential backoff before retrying
+          await sleep(100 * attempt);
         }
+
+        if (!success) {
+          failed.push(card);
+          console.error('Failed to import card after retries:', card);
+        }
+
+        // Small delay between cards to be gentle on the server
+        await sleep(delayBetweenCards);
+      }
+
+      if (failed.length) {
+        console.warn(`${failed.length} cards failed to import.`);
       }
 
       return deck;
