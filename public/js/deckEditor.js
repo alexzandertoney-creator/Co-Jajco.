@@ -185,16 +185,12 @@ export class DeckEditor {
           // Add cards to the deck
           if (Array.isArray(deckData.cards)) {
             for (const card of deckData.cards) {
-              await DataManager.addCardToDeck(
+              const success = await DataManager.addCardToDeck(
                 deck.id,
                 card.question || '',
                 card.answer || ''
               );
-                console.log(
-    'Importing:',
-    card.question,
-    success
-  );
+              console.log('Importing:', card.question, success);
             }
           }
 

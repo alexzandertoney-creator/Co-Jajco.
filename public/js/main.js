@@ -87,7 +87,23 @@ async function initializeApp() {
       // Show empty state if no decks
       UI.card.innerHTML = '<div style="text-align: center; padding: 40px;"><p style="font-size: 18px; color: var(--text-light);">No decks available. Create one or add decks from <a href="recommended.html">Recommended Decks</a>.</p></div>';
     }
-    
+    // Listen for decks created elsewhere and auto-refresh UI
+    try {
+      window.addEventListener('deckCreated', (e) => {
+        const newDeck = e.detail;
+        DataManager.updateFilteredDecks();
+        UI.updateDeckSelect(DataManager.filteredDecks);
+        const idx = DataManager.filteredDecks.findIndex(d => d.id === newDeck.id);
+        if (idx >= 0) {
+          currentDeckIndex = idx;
+          UI.deckSelect.value = currentDeckIndex;
+          flashcardsMode.showCard(DataManager.getDeck(currentDeckIndex), DataManager.currentUser.learningLang);
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
+
     console.log('App initialized successfully');
   } catch (error) {
     console.error('Failed to initialize app:', error);
@@ -419,29 +435,32 @@ function setupDeckEditorListeners() {
     const topic = UI.deckPromptTopic.value.trim() || 'Custom deck';
     const deckName = `${topic} (${level})`;
 
-    const deck = deckEditor.importDeckFromJson(
-      jsonText,
-      DataManager.currentUser.learningLang,
-      DataManager.currentUser.nativeLang,
-      deckName
-    );
 
-    if (!deck) {
-      return alert('Invalid deck JSON. Make sure the AI returns an array of cards with question and answer fields.');
-    }
+    (async () => {
+      const deck = await deckEditor.importDeckFromJson(
+        jsonText,
+        DataManager.currentUser.learningLang,
+        DataManager.currentUser.nativeLang,
+        deckName
+      );
 
-    DataManager.updateFilteredDecks();
-    UI.updateDeckSelect(DataManager.filteredDecks);
+      if (!deck) {
+        return alert('Invalid deck JSON. Make sure the AI returns an array of cards with question and answer fields.');
+      }
 
-    currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
-    if (currentDeckIndex < 0) currentDeckIndex = 0;
-    UI.deckSelect.value = currentDeckIndex;
+      DataManager.updateFilteredDecks();
+      UI.updateDeckSelect(DataManager.filteredDecks);
 
-    deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
-    alert(`Deck "${deck.name}" imported successfully!`);
+      currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
+      if (currentDeckIndex < 0) currentDeckIndex = 0;
+      UI.deckSelect.value = currentDeckIndex;
 
-    const autoLevel = UI.deckPromptLevel.value || 'A1';
-    PublicLibrary.publishCurrentDeck(deck, autoLevel);
+      deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
+      alert(`Deck "${deck.name}" imported successfully!`);
+
+      const autoLevel = UI.deckPromptLevel.value || 'A1';
+      PublicLibrary.publishCurrentDeck(deck, autoLevel);
+    })();
   });
 }
 

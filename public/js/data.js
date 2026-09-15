@@ -178,6 +178,11 @@ export async function createDeck(name, learningLang, nativeLang) {
     decks.push(newDeck);
     updateFilteredDecks();
     console.log('Created deck:', newDeck);
+    try {
+      window.dispatchEvent(new CustomEvent('deckCreated', { detail: newDeck }));
+    } catch (e) {
+      // ignore if dispatch not available in environment
+    }
     return newDeck;
   } catch (error) {
     console.error('Failed to create deck:', error);
