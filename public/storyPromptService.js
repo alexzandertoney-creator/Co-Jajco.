@@ -99,6 +99,7 @@ Tokenization (VERY IMPORTANT):
 OUTPUT FORMAT (STRICT JSON):
 
 {
+  "title": "Search the Web for Accurate title based on text, otherwise generate a catchy title",
   "story": "FULL TEXT HERE (simplified if requested, or original if not)",
   "tokens": [
     { "text": "token1", "translation": "translation in ${nativeLang}" },
@@ -111,6 +112,7 @@ RULES:
 - DO NOT include markdown
 - ONLY return valid JSON
 - Ensure tokens fully reconstruct the story when joined with spaces
+-Ensure tokens do not overlap with the pragraph break '/n' 
 - Provide translations in ${nativeLang}`;
 }
 
