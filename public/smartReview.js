@@ -1,5 +1,6 @@
-let decks = JSON.parse(localStorage.getItem("decks")) || [];
+let decks = [];
 let currentUser = null;
+let selectedDeck = null;
 
 const langMap = {
   en: 'en-US',
@@ -48,33 +49,24 @@ speechSynthesis.onvoiceschanged = () => {
   console.log("Voices loaded:", speechSynthesis.getVoices());
 };
 
-function saveDecks() {
-  localStorage.setItem("decks", JSON.stringify(decks));
-}
-function buildMasterVocab(learningLang, nativeLang) {
-  const seen = new Set();
-  const words = [];
+async function saveSelectedDeck() {
+  if (!selectedDeck) return;
 
-  decks
-    .filter(d => d.learningLang === learningLang && d.nativeLang === nativeLang)
-    .forEach(deck => {
-      deck.cards.forEach(card => {
-        const key = `${card.question}→${card.answer}`.toLowerCase();
-
-        if (!seen.has(key)) {
-          seen.add(key);
-
-          // IMPORTANT: push ORIGINAL reference
-          if (!card.stats) {
-            card.stats = { correct: 0, incorrect: 0 };
-          }
-
-          words.push(card); // ✅ NOT a copy
-        }
-      });
+  const token = localStorage.getItem("token");
+  try {
+    const res = await fetch(`/api/library/decks/${selectedDeck.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ cards: selectedDeck.cards })
     });
 
-  return words;
+    if (!res.ok) throw new Error(`Deck update failed: ${res.status}`);
+  } catch (error) {
+    console.error("Failed to save Smart Review progress:", error);
+  }
 }
 async function loadUser() {
   const token = localStorage.getItem("token");
@@ -123,6 +115,7 @@ const correctBtn = document.getElementById("correctBtn");
 const incorrectBtn = document.getElementById("incorrectBtn");
 const swapSidesBtn = document.getElementById("swapSides");
 const progressEl = document.getElementById("cardProgress");
+const reviewDeckSelect = document.getElementById("reviewDeckSelect");
 
 
 
@@ -193,14 +186,52 @@ speakModeSelect.blur();
 
 // --------- INIT ---------
 async function initSmartReview() {
-  await loadUser();
+  const user = await loadUser();
+  if (!user) return;
 
-  const masterDeck = buildMasterVocab(
-    currentUser.learningLang,
-    currentUser.nativeLang
+  const token = localStorage.getItem("token");
+  try {
+    const res = await fetch("/api/library/decks", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`Deck load failed: ${res.status}`);
+    decks = await res.json();
+  } catch (error) {
+    console.error("Failed to load saved decks for Smart Review:", error);
+    questionEl.textContent = "Unable to load your saved decks.";
+    return;
+  }
+
+  const matchingDecks = decks.filter(deck =>
+    deck.learningLang === user.learningLang && deck.nativeLang === user.nativeLang
   );
+  reviewDeckSelect.innerHTML = "";
 
-  reviewCards = masterDeck
+  matchingDecks.forEach(deck => {
+    const option = document.createElement("option");
+    option.value = String(deck.id);
+    option.textContent = `${deck.name} (${deck.cards?.length || 0})`;
+    reviewDeckSelect.appendChild(option);
+  });
+
+  reviewDeckSelect.disabled = matchingDecks.length === 0;
+  if (!matchingDecks.length) {
+    questionEl.textContent = "No saved decks for this language pair.";
+    return;
+  }
+
+  reviewDeckSelect.addEventListener("change", () => loadSelectedDeck());
+  loadSelectedDeck();
+}
+
+function loadSelectedDeck() {
+  selectedDeck = decks.find(deck => String(deck.id) === reviewDeckSelect.value);
+  const cards = selectedDeck?.cards || [];
+  reviewCards = cards
+    .map(card => {
+      if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
+      return card;
+    })
     .sort((a, b) => {
       const totalA = a.stats.correct + a.stats.incorrect || 1;
       const totalB = b.stats.correct + b.stats.incorrect || 1;
@@ -210,7 +241,9 @@ async function initSmartReview() {
     .slice(0, 20);
 
   if (reviewCards.length === 0) {
-    questionEl.textContent = "No cards available 😅";
+    questionEl.textContent = "No cards in this deck.";
+    answerEl.textContent = "";
+    progressEl.textContent = "";
     return;
   }
 
@@ -261,7 +294,7 @@ correctBtn.addEventListener("click", () => {
   const currentCard = reviewCards[currentIndex];
 
   currentCard.stats.correct++;
-  saveDecks();
+  saveSelectedDeck();
 
   reviewCards.splice(currentIndex, 1);
 
@@ -276,7 +309,7 @@ incorrectBtn.addEventListener("click", () => {
   const currentCard = reviewCards[currentIndex];
 
   currentCard.stats.incorrect++;
-  saveDecks();
+  saveSelectedDeck();
 
   reviewCards.push(reviewCards.splice(currentIndex, 1)[0]);
 
