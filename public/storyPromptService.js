@@ -317,8 +317,6 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
   container.innerHTML = '';
   const storyEl = document.createElement('div');
   storyEl.className = 'interactive-story';
-  storyEl.style.lineHeight = '1.8';
-  storyEl.style.fontSize = '18px';
 
   // Sort tokens by length (longest first) to match multi-word tokens before single words
   const sortedTokens = [...tokenizer.tokens].sort((a, b) => 
@@ -443,40 +441,28 @@ export function renderSelectedTokens(containerSelector, tokenizer, onChange) {
   container.innerHTML = '';
 
   if (selected.length === 0) {
-    container.innerHTML = '<p style="color: #999;">Click tokens to add them here</p>';
+    container.innerHTML = '<p class="empty-hint">Tap words in the story to collect them here.</p>';
     return;
   }
 
   const list = document.createElement('div');
   list.className = 'selected-tokens';
-  list.style.display = 'grid';
-  list.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
-  list.style.gap = '10px';
 
   selected.forEach((token, index) => {
     const card = document.createElement('div');
-    card.style.border = '1px solid #ddd';
-    card.style.padding = '10px';
-    card.style.borderRadius = '4px';
-    card.style.backgroundColor = '#f9f9f9';
+    card.className = 'token-chip';
 
     const text = document.createElement('strong');
     text.textContent = token.text;
     
     const translation = document.createElement('div');
     translation.textContent = token.translation;
-    translation.style.fontSize = '12px';
-    translation.style.color = '#666';
-    translation.style.marginTop = '5px';
+    translation.className = 'meta';
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = '✕';
-    removeBtn.style.float = 'right';
-    removeBtn.style.background = 'none';
-    removeBtn.style.border = 'none';
-    removeBtn.style.cursor = 'pointer';
-    removeBtn.style.color = '#cc0000';
-    removeBtn.style.fontSize = '16px';
+    removeBtn.className = 'icon-btn';
+    removeBtn.setAttribute('aria-label', `Remove ${token.text}`);
 
     removeBtn.addEventListener('click', () => {
       tokenizer.deselectToken(token.text);
@@ -704,24 +690,10 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   const controlsEl = document.createElement('div');
   controlsEl.className = 'story-tts-controls';
   controlsEl.style.display = 'flex';
-  controlsEl.style.gap = '10px';
-  controlsEl.style.padding = '15px';
-  controlsEl.style.backgroundColor = '#f0f0f0';
-  controlsEl.style.borderRadius = '4px';
-  controlsEl.style.alignItems = 'center';
-  controlsEl.style.flexWrap = 'wrap';
-  controlsEl.style.marginBottom = '20px';
 
   // Previous button
   const prevBtn = document.createElement('button');
   prevBtn.textContent = '⏮ Previous';
-  prevBtn.style.padding = '8px 12px';
-  prevBtn.style.cursor = 'pointer';
-  prevBtn.style.border = '1px solid #0066cc';
-  prevBtn.style.borderRadius = '4px';
-  prevBtn.style.backgroundColor = '#0066cc';
-  prevBtn.style.color = 'white';
-  prevBtn.style.fontWeight = 'bold';
   prevBtn.addEventListener('click', () => {
     ttsPlayer.previousToken();
     updateCurrentTokenDisplay();
@@ -730,29 +702,16 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   // Play button
   const playBtn = document.createElement('button');
   playBtn.textContent = '▶ Play Story';
-  playBtn.style.padding = '8px 12px';
-  playBtn.style.cursor = 'pointer';
-  playBtn.style.border = '1px solid #0066cc';
-  playBtn.style.borderRadius = '4px';
-  playBtn.style.backgroundColor = '#0066cc';
-  playBtn.style.color = 'white';
-  playBtn.style.fontWeight = 'bold';
 
   const updatePlayBtn = () => {
     if (ttsPlayer.getIsPlaying()) {
       if (ttsPlayer.getIsPaused()) {
         playBtn.textContent = '▶ Resume';
-        playBtn.style.backgroundColor = '#00cc00';
-        playBtn.style.borderColor = '#00cc00';
       } else {
         playBtn.textContent = '⏸ Pause';
-        playBtn.style.backgroundColor = '#ff9900';
-        playBtn.style.borderColor = '#ff9900';
       }
     } else {
       playBtn.textContent = '▶ Play Story';
-      playBtn.style.backgroundColor = '#0066cc';
-      playBtn.style.borderColor = '#0066cc';
     }
   };
 
@@ -772,13 +731,6 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   // Stop button
   const stopBtn = document.createElement('button');
   stopBtn.textContent = '⏹ Stop';
-  stopBtn.style.padding = '8px 12px';
-  stopBtn.style.cursor = 'pointer';
-  stopBtn.style.border = '1px solid #0066cc';
-  stopBtn.style.borderRadius = '4px';
-  stopBtn.style.backgroundColor = '#0066cc';
-  stopBtn.style.color = 'white';
-  stopBtn.style.fontWeight = 'bold';
 
   stopBtn.addEventListener('click', () => {
     ttsPlayer.stopStory();
@@ -789,13 +741,6 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   // Next button
   const nextBtn = document.createElement('button');
   nextBtn.textContent = 'Next ⏭';
-  nextBtn.style.padding = '8px 12px';
-  nextBtn.style.cursor = 'pointer';
-  nextBtn.style.border = '1px solid #0066cc';
-  nextBtn.style.borderRadius = '4px';
-  nextBtn.style.backgroundColor = '#0066cc';
-  nextBtn.style.color = 'white';
-  nextBtn.style.fontWeight = 'bold';
 
   nextBtn.addEventListener('click', () => {
     ttsPlayer.nextToken();
@@ -805,30 +750,21 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   // Current token display
   const tokenDisplayEl = document.createElement('div');
   tokenDisplayEl.className = 'current-token-display';
-  tokenDisplayEl.style.flex = '1';
-  tokenDisplayEl.style.padding = '10px';
-  tokenDisplayEl.style.backgroundColor = '#e6f2ff';
-  tokenDisplayEl.style.borderRadius = '4px';
-  tokenDisplayEl.style.minWidth = '200px';
 
   const updateCurrentTokenDisplay = () => {
     const token = ttsPlayer.getCurrentToken();
     if (token) {
       tokenDisplayEl.innerHTML = `
-        <div style="font-weight: bold; color: #0066cc;">${token.text}</div>
-        <div style="font-size: 12px; color: #666;">${token.translation}</div>
+        <div class="word">${token.text}</div>
+        <div class="meta">${token.translation}</div>
       `;
     } else {
-      tokenDisplayEl.innerHTML = '<div style="color: #999;">Click Play or use arrows</div>';
+      tokenDisplayEl.innerHTML = '<div class="meta">Press play or use the arrow keys</div>';
     }
   };
 
   // Keyboard shortcuts hint
   const hintEl = document.createElement('div');
-  hintEl.style.width = '100%';
-  hintEl.style.fontSize = '12px';
-  hintEl.style.color = '#666';
-  hintEl.style.marginTop = '10px';
   hintEl.innerHTML = '💡 <strong>Keyboard:</strong> ← Previous | → Next | Space = Play/Pause';
 
   // Add to container

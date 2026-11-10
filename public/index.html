@@ -3,19 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Co? Jajco. - Language Learning</title>
+  <title>Co? Jajco.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body>
+<body data-group="study">
 
-  <!-- HEADER -->
-  <header class="app-header" style="background-color: var(--primary);"> >
-    <div style="display: flex;  justify-content: space-between; align-items: center; width: 100%; gap: 20px;">
-      <h1 style="margin: 0;"><img src="/images/logo.01.png" alt="Logo" width="200" height="200"></h1>
-      <nav style="display: flex; gap: 12px; align-items: center;">
-        <label for="languageSelect" style="color: var(--text-dark); margin: 0;">Learning Language:</label>
-        <select id="languageSelect" style="width: 150px;">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">
+      <img src="/images/logo.01.png" alt="" width="44" height="44">
+      <span>Co? Jajco.</span>
+    </a>
+
+    <nav class="primary-nav mode-selector" aria-label="Main">
+      <button data-mode="flashcards" data-group="study"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg><span>Study</span></button>
+      <a href="smartReview.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span></a>
+      <button data-mode="deckEditor" data-group="deckEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Decks</span></button>
+      <button data-mode="storyAnalyzer" data-group="storyAnalyzer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Stories</span></button>
+      <button data-mode="publicLibrary" data-group="publicLibrary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>Library</span></button>
+    </nav>
+
+    <div class="account">
+      <label class="lang-picker">
+        <span>Learning</span>
+        <select id="languageSelect">
           <option value="es">Spanish</option>
           <option value="fr">French</option>
           <option value="de">German</option>
@@ -24,200 +38,218 @@
           <option value="it">Italian</option>
           <option value="en">English</option>
         </select>
-        <button id="logoutBtn" class="secondary">Logout</button>
-      </nav>
+      </label>
+      <button id="logoutBtn" class="ghost">Log out</button>
     </div>
-  </header>
+  </aside>
 
-  <!-- DECK & LANGUAGE CONTROLS -->
-  <section class="deck-controls">
-    <select id="deckSelect"></select>
-    <button id="newDeck">➕ New Deck</button>
-    <button id="recommendedDecksBtn">Recommended Decks</button>
-  </section>
+  <main class="main">
 
-  <!-- MODE SELECTOR -->
-  <nav class="mode-selector">
+  <div class="deck-controls">
+    <select id="deckSelect" class="deck-title" aria-label="Current deck"></select>
+    <button id="newDeck" class="ghost">+ New deck</button>
+  </div>
+
+  <nav class="study-switch segmented mode-selector" aria-label="Study modes">
     <button data-mode="flashcards">Flashcards</button>
     <button data-mode="learn">Learn</button>
     <button data-mode="test">Test</button>
     <button data-mode="match">Match</button>
-    <button data-mode="deckEditor">Editor</button>
-    <button data-mode="storyAnalyzer">Stories</button>
-    <button data-mode="publicLibrary">Public Library</button>
-    <button data-mode="smartReview" onclick="window.location.href='smartReview.html'">Smart Review</button>
   </nav>
 
-  <!-- FLASHCARDS MODE -->
+  <!-- FLASHCARDS -->
   <section id="flashcardContainer" class="mode-container">
     <div id="card" class="card">
       <div class="card-front">
         <p id="question"></p>
-        <button id="speakFrontBtn" title="Listen">🔊</button>
+        <button id="speakFrontBtn" class="speak" title="Listen" aria-label="Listen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
       </div>
       <div class="card-back">
         <p id="answer"></p>
-        <button id="speakBackBtn" title="Listen">🔊</button>
+        <button id="speakBackBtn" class="speak" title="Listen" aria-label="Listen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
       </div>
     </div>
-    
+
     <div id="studyControls">
-      <button id="correctBtn" class="success">✅ Correct</button>
-      <button id="incorrectBtn" class="danger">❌ Incorrect</button>
+      <button id="incorrectBtn" class="danger">Not yet</button>
+      <button id="correctBtn" class="success">I knew it</button>
     </div>
-    
-    <div class="flashcard-controls">
-      <button id="prev">⬅ Previous</button>
-      <button id="swapSides">🔄 Swap</button>
-      <button id="next">Next ➡</button>
+
+    <div class="card-nav">
+      <button id="prev" class="ghost round" aria-label="Previous card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="card-nav-center">
+        <div id="cardProgress"></div>
+        <p class="hint">Tap the card to flip</p>
+      </div>
+      <button id="next" class="ghost round" aria-label="Next card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
     </div>
-    
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+
+    <div class="options-row">
       <label class="study-toggle">
         <input type="checkbox" id="studyModeToggle">
-        Study Mode
+        Study mode
       </label>
       <label class="study-toggle">
         <input type="checkbox" id="flashShuffleToggle">
         Shuffle
       </label>
-      <select id="speakMode" style="padding: 8px 12px;">
-        <option value="off">🔇 Off</option>
-        <option value="learning">Learning</option>
-        <option value="native">Native</option>
-        <option value="both">Both</option>
-      </select>
+      <button id="swapSides" class="ghost small">Swap sides</button>
+      <label class="inline-select">
+        <span>Read aloud</span>
+        <select id="speakMode">
+          <option value="off">Off</option>
+          <option value="learning">Learning side</option>
+          <option value="native">Native side</option>
+          <option value="both">Both sides</option>
+        </select>
+      </label>
     </div>
-    
-    <div id="cardProgress"></div>
   </section>
 
-  <!-- LEARN MODE -->
+  <!-- LEARN -->
   <section id="learnContainer" class="mode-container">
-    <p id="learnQuestion"></p>
-    <input id="learnAnswer" placeholder="Type your answer" />
-    <button id="submitLearn">Submit Answer</button>
-    <p id="learnFeedback"></p>
+    <div class="panel quiz">
+      <p id="learnQuestion" class="prompt-word"></p>
+      <input id="learnAnswer" placeholder="Type the translation" autocomplete="off" />
+      <button id="submitLearn">Check answer</button>
+      <p id="learnFeedback" aria-live="polite"></p>
+    </div>
     <label class="study-toggle">
       <input type="checkbox" id="shuffleToggle">
-      Shuffle Cards
+      Shuffle cards
     </label>
   </section>
 
-  <!-- TEST MODE -->
+  <!-- TEST -->
   <section id="testContainer" class="mode-container">
-    <p id="testQuestion"></p>
-    <div id="testOptions"></div>
-    <p id="testFeedback"></p>
-    <p id="testScore"></p>
+    <div class="panel quiz">
+      <p id="testQuestion" class="prompt-word"></p>
+      <div id="testOptions"></div>
+      <p id="testFeedback" aria-live="polite"></p>
+      <p id="testScore" class="meta"></p>
+    </div>
   </section>
 
-  <!-- MATCH MODE -->
+  <!-- MATCH -->
   <section id="matchContainer" class="mode-container">
-    <p>⏱ Time: <span id="matchTimer">60</span>s</p>
+    <p class="timer">Time left <strong><span id="matchTimer">60</span>s</strong></p>
     <div id="matchGrid"></div>
-    <p id="matchFeedback"></p>
+    <p id="matchFeedback" aria-live="polite"></p>
   </section>
 
   <!-- DECK EDITOR -->
-  <section id="deckEditorContainer" class="mode-container">
-    <h2>🛠 Deck Editor</h2>
+  <section id="deckEditorContainer" class="mode-container narrow">
+    <div class="section-head">
+      <h2>Edit cards</h2>
+      <button id="publishDeckBtn" class="ghost">Publish to library</button>
+    </div>
 
-    <form id="editorControls">
-      <input id="editorQuestion" placeholder="Question" />
-      <input id="editorAnswer" placeholder="Answer" />
-      <button type="submit" id="editorAdd">Add Card</button>
+    <form id="editorControls" class="panel">
+      <h3>Add a card</h3>
+      <div class="field-row">
+        <input id="editorQuestion" placeholder="Word or phrase" aria-label="Question" />
+        <input id="editorAnswer" placeholder="Translation" aria-label="Answer" />
+        <button type="submit" id="editorAdd">Add card</button>
+      </div>
     </form>
 
-    <h3 style="margin-top: 24px;">Deck Curation Prompt</h3>
-    <div class="bulk-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0;">
-      <div>
-        <label for="deckPromptLevel">Learner level</label>
-        <select id="deckPromptLevel">
-          <option value="A1">A1</option>
-          <option value="A2">A2</option>
-          <option value="B1">B1</option>
-          <option value="B2">B2</option>
-          <option value="C1">C1</option>
-          <option value="C2">C2</option>
-        </select>
+    <details class="panel">
+      <summary>Create cards with AI</summary>
+      <p class="meta">Generate a prompt, paste it into any AI chat, then paste the JSON it returns below.</p>
+      <div class="field-grid">
+        <label>Level
+          <select id="deckPromptLevel">
+            <option value="A1">A1</option>
+            <option value="A2">A2</option>
+            <option value="B1">B1</option>
+            <option value="B2">B2</option>
+            <option value="C1">C1</option>
+            <option value="C2">C2</option>
+          </select>
+        </label>
+        <label>Topic
+          <input id="deckPromptTopic" placeholder="Travel, food, work…" />
+        </label>
+        <label>Cards
+          <select id="deckPromptCount">
+            <option value="6">6</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="25">25</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+          </select>
+        </label>
       </div>
-      <div>
-        <label for="deckPromptTopic">Topic</label>
-        <input id="deckPromptTopic" placeholder="e.g. travel, food, work" />
+      <div class="actions">
+        <button id="generateDeckPromptBtn">Generate prompt</button>
+        <button id="copyDeckPromptBtn" class="ghost">Copy prompt</button>
       </div>
-      <div>
-        <label for="deckPromptCount">Card count</label>
-        <select id="deckPromptCount">
-          <option value="6">6 cards</option>
-          <option value="10" selected>10 cards</option>
-          <option value="15">15 cards</option>
-          <option value="20">20 cards</option>
-          <option value="25">25 cards</option>
-          <option value="30">30 cards</option>
-          <option value="40">40 cards</option>
-          <option value="50">50 cards</option>
-        </select>
+      <textarea id="deckPromptOutput" placeholder="Your prompt appears here"></textarea>
+
+      <label for="deckImportJson" class="field-label">Paste the AI's JSON</label>
+      <textarea id="deckImportJson" placeholder='[{"question":"...","answer":"..."}]'></textarea>
+      <div class="actions">
+        <button id="importDeckJsonBtn">Import cards</button>
       </div>
+    </details>
+
+    <div class="panel">
+      <h3>Cards in this deck</h3>
+      <ul id="cardList"></ul>
     </div>
 
-    <div class="prompt-generator" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-      <button id="generateDeckPromptBtn">Generate Deck Prompt</button>
-      <button id="copyDeckPromptBtn">Copy Prompt</button>
+    <div class="danger-zone">
+      <div>
+        <h3>Delete this deck</h3>
+        <p class="meta">Removes the deck and all its cards. This can't be undone.</p>
+      </div>
+      <button id="deleteDeckBtn" class="danger">Delete deck</button>
     </div>
-
-    <textarea id="deckPromptOutput" placeholder="Your deck creation prompt will appear here..." style="min-height: 140px; width: 100%;"></textarea>
-
-    <div style="margin-top: 16px;">
-      <label for="deckImportJson" style="display: block; font-weight: bold; margin-bottom: 8px;">Paste AI deck JSON here to import:</label>
-      <textarea id="deckImportJson" placeholder='[{"question":"...","answer":"..."}]' style="min-height: 150px; width: 100%;"></textarea>
-      <button id="importDeckJsonBtn" style="margin-top: 10px;">Import Deck JSON</button>
-    </div>
-
-    <h3 style="margin-top: 24px;">Cards in Deck</h3>
-    <button id="deleteDeckBtn" class="danger">🗑 Delete Deck</button>
-    <button id="publishDeckBtn" class="secondary" style="margin-left: 12px;">Publish Deck</button>
-    <ul id="cardList"></ul>
   </section>
 
   <!-- PUBLIC LIBRARY -->
-  <section id="publicLibraryContainer" class="mode-container" style="display: none;">
-    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px;">
-      <h2 style="margin:0;flex:1;">Public Library</h2>
-      <button id="refreshPublicLibraryBtn">Refresh</button>
-      <button id="publishStoryBtn" class="secondary">Publish Current Story</button>
+  <section id="publicLibraryContainer" class="mode-container narrow" style="display: none;">
+    <div class="section-head">
+      <h2>Library</h2>
+      <div class="actions">
+        <button id="refreshPublicLibraryBtn" class="ghost">Refresh</button>
+        <button id="publishStoryBtn" class="ghost">Publish current story</button>
+        <button id="recommendedDecksBtn">Starter decks</button>
+      </div>
     </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-      <select id="publicLibraryFilterLang" style="min-width:180px;"></select>
-      <select id="publicLibraryFilterLevel" style="min-width:180px;"></select>
-      <button id="publicLibraryShowDecksBtn">Decks</button>
-      <button id="publicLibraryShowStoriesBtn">Stories</button>
+    <div class="filter-row">
+      <div class="segmented">
+        <button id="publicLibraryShowDecksBtn">Decks</button>
+        <button id="publicLibraryShowStoriesBtn">Stories</button>
+      </div>
+      <select id="publicLibraryFilterLang" aria-label="Language"></select>
+      <select id="publicLibraryFilterLevel" aria-label="Level"></select>
     </div>
     <div id="publicLibraryDeckList"></div>
     <div id="publicLibraryStoryList" style="display:none;"></div>
   </section>
 
-  <!-- STORY ANALYZER -->
-  <section id="storyAnalyzerContainer" class="mode-container">
-    
-    <!-- INPUT MODE -->
+  <!-- STORIES -->
+  <section id="storyAnalyzerContainer" class="mode-container wide">
+
     <div id="storyInputMode" class="story-mode">
-      <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
-        <h2 style="margin: 0; flex: 1;">Story Analyzer</h2>
-        <button id="analyzeStory">Analyze Story</button>
-      </div>
-      
-      <div style="margin-bottom: 20px;">
-        <label for="storyInput" style="display: block; font-weight: bold; margin-bottom: 8px;">Paste your story JSON here:</label>
-        <textarea id="storyInput" placeholder="Paste your story JSON response here..." style="min-height: 300px; width: 100%;"></textarea>
+      <div class="section-head">
+        <h2>Stories</h2>
+        <button id="analyzeStory">Open story</button>
       </div>
 
-      <div class="prompt-generator">
-        <h3>Generate Story Prompt (Optional)</h3>
+      <div class="panel">
+        <label for="storyInput" class="field-label">Paste your story JSON</label>
+        <textarea id="storyInput" class="tall" placeholder="Paste the JSON your AI chat returned"></textarea>
+      </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0;">
-          <div>
-            <label for="promptLevel">Level:</label>
+      <details class="panel prompt-generator">
+        <summary>Generate a story prompt</summary>
+        <div class="field-grid">
+          <label>Level
             <select id="promptLevel">
               <option value="A1">A1</option>
               <option value="A2">A2</option>
@@ -225,85 +257,76 @@
               <option value="B2">B2</option>
               <option value="C1">C1</option>
               <option value="C2">C2</option>
-              <option value="Original">Keep Original Text</option>
+              <option value="Original">Keep original text</option>
             </select>
-          </div>
-          <div>
-            <label for="promptLength">Length:</label>
+          </label>
+          <label>Length
             <select id="promptLength">
               <option value="250">250 words</option>
               <option value="500">500 words</option>
               <option value="750">750 words</option>
               <option value="1000">1000 words</option>
             </select>
-          </div>
+          </label>
+          <label>Topic
+            <input id="promptTopic" placeholder="Travel, daily life, news…" />
+          </label>
         </div>
-
-        <label for="promptTopic">Topic:</label>
-        <input id="promptTopic" placeholder="e.g. travel, daily life, news" style="width: 100%; margin-bottom: 12px;" />
-
-        <div class="prompt-buttons">
-          <button id="generateFromTextBtn">From Text</button>
-          <button id="generatePromptBtn">Generate</button>
-          <button id="copyPromptBtn">Copy</button>
+        <div class="actions">
+          <button id="generatePromptBtn">Generate prompt</button>
+          <button id="generateFromTextBtn" class="ghost">From my own text</button>
+          <button id="copyPromptBtn" class="ghost">Copy</button>
         </div>
+        <textarea id="promptOutput" placeholder="Your prompt appears here"></textarea>
+      </details>
 
-        <textarea id="promptOutput" placeholder="Your prompt will appear here..." style="min-height: 150px;"></textarea>
-      </div>
-
-      <div class="story-archive-panel" style="margin-top: 24px; background: #f8f9fb; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px;">
+      <div class="panel story-archive-panel">
+        <div class="section-head">
           <div>
-            <h3 style="margin: 0;">Story Archive</h3>
-            <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Review stories you analyzed previously and reopen them anytime.</p>
+            <h3>Past stories</h3>
+            <p class="meta">Reopen any story you've read before.</p>
           </div>
-          <button id="clearStoryArchive" class="secondary" type="button" style="padding: 8px 12px;" var(--bg-light)>Clear archive</button>
+          <button id="clearStoryArchive" class="ghost danger" type="button">Clear all</button>
         </div>
-        <div id="storyArchiveList" style="display: grid; gap: 10px;"></div>
-        <p id="storyArchiveEmpty" style="margin: 0; color: #EDD4AE;">No archived stories yet. Analyze a story to save it.</p>
+        <div id="storyArchiveList"></div>
+        <p id="storyArchiveEmpty" class="empty-hint">No stories yet. Open one above and it will be saved here.</p>
       </div>
     </div>
 
-    <!-- REVIEW MODE -->
     <div id="storyReviewMode" class="story-mode" style="display: none;">
-      <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
-        <h2 style="margin: 0; flex: 1;">Story Review</h2>
-        <button id="backToInput" class="secondary">⬅ Back to Input</button>
+      <div class="section-head">
+        <button id="backToInput" class="ghost">Back to stories</button>
       </div>
 
       <div class="story-review-layout">
-        <!-- STORY SECTION -->
         <div class="story-review-container">
-          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
-            <button id="playPauseStory">▶️ Play</button>
-            <span id="storyPlaybackStatus" style="font-size: 14px; color: var(--text-light);">Token: <strong id="currentTokenIndex">0</strong></span>
-            <small style="color: var(--text-light);">Use ← → arrow keys to navigate</small>
+          <div class="story-toolbar">
+            <button id="playPauseStory">Play</button>
+            <span id="storyPlaybackStatus" class="meta">Word <strong id="currentTokenIndex">0</strong></span>
+            <span class="meta">Use ← → to move between words</span>
           </div>
           <div class="story-display" id="storyDisplay"></div>
-          <button id="createDeckFromStory" style="width: 100%; margin-top: 16px;">➕ Create Deck from Unknown Words</button>
+          <button id="createDeckFromStory" class="ghost">Create deck from unknown words</button>
         </div>
 
-        <!-- FLASHCARDS SECTION -->
-        <div class="story-flashcards-panel">
-          <h3>Unknown Words & Translations</h3>
-          <ul id="unknownWordsList" style="list-style: none; padding: 0; margin: 0;"></ul>
-          <div id="selectedTokens" style="margin-top:12px;"></div>
-          <button id="createDeckFromStoryTokens" style="width: 100%; margin-top: 16px;">🎴 Create Flashcard Deck</button>
-        </div>
+        <aside class="story-flashcards-panel">
+          <h3>Your words</h3>
+          <ul id="unknownWordsList"></ul>
+          <div id="selectedTokens"></div>
+          <button id="createDeckFromStoryTokens">Create flashcard deck</button>
+        </aside>
       </div>
     </div>
 
-    <!-- TRANSLATION TOOLTIP -->
     <div id="translationTooltip" class="translation-tooltip" style="display: none;">
       <span id="tooltipWord"></span>
       <div class="tooltip-arrow"></div>
     </div>
   </section>
 
+  </main>
+
   <script type="module" src="js/main.js"></script>
   <script src="js/languageSync.js"></script>
-
-
 </body>
-
 </html>

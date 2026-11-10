@@ -28,16 +28,13 @@ export class DeckEditor {
       deck.cards.forEach((card, index) => {
         const li = document.createElement('li');
         li.className = 'card-item';
-        li.style.opacity = '0.6';
 
         const statsSpan = document.createElement('span');
-        statsSpan.style.marginLeft = '10px';
-        statsSpan.style.fontSize = '12px';
-        statsSpan.style.color = '#666';
+        statsSpan.className = 'meta';
         statsSpan.textContent =
-          `✅ ${card.stats?.correct || 0} | ❌ ${card.stats?.incorrect || 0}`;
+          `${card.stats?.correct || 0} right · ${card.stats?.incorrect || 0} missed`;
 
-        li.innerHTML = `<strong>${card.question}</strong> → ${card.answer}`;
+        li.innerHTML = `<span class="pair"><strong>${card.question}</strong><span class="meta">${card.answer}</span></span>`;
         li.appendChild(statsSpan);
 
         cardList.appendChild(li);
@@ -51,9 +48,9 @@ export class DeckEditor {
       li.className = 'card-item';
 
       li.innerHTML = `
-        <strong>${card.question}</strong> → ${card.answer}
-        <button class="btn-edit" data-index="${index}">✏️</button>
-        <button class="btn-delete" data-index="${index}">🗑️</button>
+        <span class="pair"><strong>${card.question}</strong><span class="meta">${card.answer}</span></span>
+        <button class="btn-edit ghost" data-index="${index}">Edit</button>
+        <button class="btn-delete ghost danger" data-index="${index}">Delete</button>
       `;
 
       li.querySelector('.btn-delete').addEventListener('click', () => {

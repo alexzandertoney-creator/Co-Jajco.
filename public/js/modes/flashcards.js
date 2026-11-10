@@ -78,7 +78,7 @@ export class FlashcardsMode {
       card.classList.remove('flipped');
 
       const progressEl = document.getElementById('cardProgress');
-      if (progressEl) progressEl.textContent = '✅ Complete!';
+      if (progressEl) progressEl.textContent = 'Complete';
       return;
     }
 

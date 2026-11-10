@@ -29,8 +29,8 @@ function setActiveTab(tab) {
   activeTab = tab;
   if (!UI.publicLibraryDeckList || !UI.publicLibraryStoryList) return;
 
-  UI.publicLibraryDeckList.style.display = tab === 'decks' ? 'block' : 'none';
-  UI.publicLibraryStoryList.style.display = tab === 'stories' ? 'block' : 'none';
+  UI.publicLibraryDeckList.style.display = tab === 'decks' ? 'grid' : 'none';
+  UI.publicLibraryStoryList.style.display = tab === 'stories' ? 'grid' : 'none';
 
   UI.publicLibraryShowDecksBtn?.classList.toggle('active', tab === 'decks');
   UI.publicLibraryShowStoriesBtn?.classList.toggle('active', tab === 'stories');
@@ -91,7 +91,7 @@ function renderDeckList(decks) {
   UI.publicLibraryDeckList.innerHTML = '';
 
   if (!decks.length) {
-    UI.publicLibraryDeckList.innerHTML = '<p style="color:#666;">No public decks found. Try a different language or level.</p>';
+    UI.publicLibraryDeckList.innerHTML = '<p class="empty-hint">No public decks found. Try a different language or level.</p>';
     return;
   }
 
@@ -99,16 +99,14 @@ function renderDeckList(decks) {
     const card = document.createElement('div');
     card.className = 'public-library-card';
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-        <div style="flex:1;">
-          <h3 style="margin:0 0 6px;">${deck.name}</h3>
-          <p style="margin:0 0 6px; color:#555; font-size:14px;">${deck.learningLang || 'Unknown'} → ${deck.nativeLang || 'Unknown'} · ${deck.level || 'Unspecified'}</p>
-          <p style="margin:0; color:#777; font-size:12px;">By ${deck.author || 'Anonymous'} · ${new Date(deck.created_at).toLocaleDateString()}</p>
+      <div>
+          <h3>${deck.name}</h3>
+          <p class="lib-lang">${deck.learningLang || 'Unknown'} → ${deck.nativeLang || 'Unknown'} · ${deck.level || 'Unspecified'}</p>
+          <p class="meta">By ${deck.author || 'Anonymous'} · ${new Date(deck.created_at).toLocaleDateString()}</p>
         </div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <div class="lib-actions">
         <button type="button" data-action="import-deck" data-deck-id="${deck.id}">Import Deck</button>
-        <button type="button" data-action="copy-deck-json" data-deck-id="${deck.id}">Copy JSON</button>
+        <button type="button" class="ghost" data-action="copy-deck-json" data-deck-id="${deck.id}">Copy JSON</button>
       </div>
     `;
 
@@ -127,7 +125,7 @@ function renderStoryList(stories) {
   UI.publicLibraryStoryList.innerHTML = '';
 
   if (!stories.length) {
-    UI.publicLibraryStoryList.innerHTML = '<p style="color:#666;">No public stories found. Try a different language or level.</p>';
+    UI.publicLibraryStoryList.innerHTML = '<p class="empty-hint">No public stories found. Try a different language or level.</p>';
     return;
   }
 
@@ -135,15 +133,13 @@ function renderStoryList(stories) {
     const card = document.createElement('div');
     card.className = 'public-library-card';
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-        <div style="flex:1;">
-          <h3 style="margin:0 0 6px;">${story.title || 'Published Story'}</h3>
-          <p style="margin:0 0 6px; color:#555; font-size:14px;">${story.learningLang || 'Unknown'} → ${story.nativeLang || 'Unknown'} · ${story.level || 'Unspecified'}</p>
-          <p style="margin:0; color:#777; font-size:12px;">By ${story.author || 'Anonymous'} · ${new Date(story.created_at).toLocaleDateString()}</p>
+      <div>
+          <h3>${story.title || 'Published Story'}</h3>
+          <p class="lib-lang">${story.learningLang || 'Unknown'} → ${story.nativeLang || 'Unknown'} · ${story.level || 'Unspecified'}</p>
+          <p class="meta">By ${story.author || 'Anonymous'} · ${new Date(story.created_at).toLocaleDateString()}</p>
         </div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-        <button type="button" data-action="copy-story-json" data-story-id="${story.id}">Copy JSON</button>
+      <div class="lib-actions">
+        <button type="button" class="ghost" data-action="copy-story-json" data-story-id="${story.id}">Copy JSON</button>
       </div>
     `;
 

@@ -85,7 +85,7 @@ async function initializeApp() {
       flashcardsMode.showCard(firstDeck, DataManager.currentUser.learningLang);
     } else {
       // Show empty state if no decks
-      UI.card.innerHTML = '<div style="text-align: center; padding: 40px;"><p style="font-size: 18px; color: var(--text-light);">No decks available. Create one or add decks from <a href="recommended.html">Recommended Decks</a>.</p></div>';
+      UI.card.innerHTML = '<div class="card-empty"><h3>No decks yet</h3><p class="meta">Create one with “New deck”, or pick from the <a href="recommended.html">starter decks</a>.</p></div>';
     }
     // Listen for decks created elsewhere and auto-refresh UI
     try {
@@ -103,6 +103,10 @@ async function initializeApp() {
     } catch (e) {
       // ignore
     }
+
+    // Deep link from other pages, e.g. index.html#deckEditor
+    const hashMode = location.hash.slice(1);
+    if (Object.values(MODES).includes(hashMode)) switchMode(hashMode);
 
     console.log('App initialized successfully');
   } catch (error) {
@@ -536,56 +540,34 @@ function setupStoryAnalyzerListeners() {
 
     archive.slice().reverse().forEach((entry) => {
       const item = document.createElement('div');
-      item.style.display = 'flex';
-      item.style.justifyContent = 'space-between';
-      item.style.alignItems = 'flex-start';
-      item.style.padding = '12px 14px';
-      item.style.border = '1px solid #dde2ea';
-      item.style.borderRadius = '8px';
-      item.style.backgroundColor = '#ffffff';
-      item.style.gap = '12px';
+      item.className = 'archive-item';
 
       const details = document.createElement('div');
-      details.style.flex = '1';
+      details.className = 'archive-details';
 
       const title = document.createElement('div');
       title.textContent = entry.title;
-      title.style.fontWeight = '600';
-      title.style.marginBottom = '6px';
+      title.className = 'archive-title';
 
       const meta = document.createElement('div');
+      meta.className = 'meta';
       meta.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${entry.tokens.length} tokens`;
-      meta.style.fontSize = '12px';
-      meta.style.color = '#666';
 
       details.appendChild(title);
       details.appendChild(meta);
 
       const actions = document.createElement('div');
-      actions.style.display = 'flex';
-      actions.style.flexDirection = 'column';
-      actions.style.gap = '8px';
+      actions.className = 'archive-actions';
 
       const openBtn = document.createElement('button');
       openBtn.textContent = 'Open';
-      openBtn.style.padding = '8px 12px';
-      openBtn.style.cursor = 'pointer';
-      openBtn.style.border = '1px solid #0066cc';
-      openBtn.style.borderRadius = '6px';
-      openBtn.style.backgroundColor = '#0066cc';
-      openBtn.style.color = '#fff';
       openBtn.addEventListener('click', () => {
         openArchivedStory(entry);
       });
 
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
-      deleteBtn.style.padding = '8px 12px';
-      deleteBtn.style.cursor = 'pointer';
-      deleteBtn.style.border = '1px solid #ccc';
-      deleteBtn.style.borderRadius = '6px';
-      deleteBtn.style.backgroundColor = '#fff';
-      deleteBtn.style.color = '#333';
+      deleteBtn.className = 'ghost';
       deleteBtn.addEventListener('click', () => {
         const filtered = loadStoryArchive().filter(item => item.id !== entry.id);
         saveStoryArchive(filtered);
@@ -678,23 +660,20 @@ function setupStoryAnalyzerListeners() {
       listEl.innerHTML = '';
 
       if (selected.length === 0) {
-        listEl.innerHTML = '<li style="color:#999; padding:8px">Click tokens in the story to add them here.</li>';
+        listEl.innerHTML = '<li class="empty-hint">Tap words in the story to collect them here.</li>';
         return;
       }
 
       selected.forEach(tok => {
         const li = document.createElement('li');
-        li.style.padding = '8px';
-        li.style.borderBottom = '1px solid #eee';
 
         const title = document.createElement('div');
         title.textContent = tok.text;
-        title.style.fontWeight = '600';
+        title.className = 'word';
 
         const trans = document.createElement('div');
         trans.textContent = tok.translation || '';
-        trans.style.fontSize = '12px';
-        trans.style.color = '#666';
+        trans.className = 'meta';
 
         li.appendChild(title);
         li.appendChild(trans);

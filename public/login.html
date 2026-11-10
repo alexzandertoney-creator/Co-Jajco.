@@ -3,39 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Co? Jajco.</title>
+  <title>Log in · Co? Jajco.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <header class="app-header" style="background-color: var(--primary);">
-    <div style="display:flex; align-items:center; gap: 20px; padding: 8px 16px;">
-      <h1 style="margin: 0;"><img src="/images/logo.01.png" alt="Logo" width="200" height="200"></h1>
-    </div>
-  </header>
-
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; width: 100%;">
+  <main class="auth-page">
     <div class="form-container">
-      <h1 style="text-align: center; margin-top: 0;">📘 Co? Jajco.</h1>
-      <h2 style="text-align: center;">Welcome Back</h2>
+      <img class="auth-logo" src="/images/logo.01.png" alt="Co? Jajco." width="96" height="96">
+      <h1>Welcome back</h1>
+      <p class="meta">Log in to keep practising.</p>
 
       <div class="form-group">
         <label for="email">Email</label>
-        <input id="email" type="email" placeholder="your@email.com" />
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input id="password" type="password" placeholder="••••••••" />
+        <input id="password" type="password" autocomplete="current-password" />
       </div>
 
-      <button id="loginBtn" style="width: 100%; padding: 12px; font-size: 16px;">Login</button>
+      <button id="loginBtn">Log in</button>
 
-      <p style="text-align: center; margin-top: 16px;">
-        No account? <a href="register.html">Create one</a>
-      </p>
+      <p class="switch">New here? <a href="register.html">Create an account</a></p>
     </div>
-  </div>
+  </main>
 
   <script src="login.js"></script>
 </body>

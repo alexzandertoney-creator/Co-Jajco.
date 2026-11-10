@@ -106,8 +106,15 @@ export function renderMode(mode) {
     null;
 
   if (containerId) {
-    document.getElementById(containerId).style.display = 'block';
+    document.getElementById(containerId).style.display = 'flex';
   }
+  // Study sub-modes share one main-nav entry; body[data-group] drives which page chrome shows.
+  const group = ['flashcards', 'learn', 'test', 'match'].includes(mode) ? 'study' : mode;
+  document.body.dataset.group = group;
+  document.querySelectorAll('.mode-selector button').forEach(b => {
+    const active = b.dataset.group ? b.dataset.group === group : b.dataset.mode === mode;
+    b.setAttribute('aria-current', active ? 'page' : 'false');
+  });
 }
 
 /**
@@ -153,14 +160,6 @@ export function showPopup(message) {
   const popup = document.createElement('div');
   popup.className = 'popup';
   popup.textContent = message;
-  popup.style.position = 'fixed';
-  popup.style.top = '20px';
-  popup.style.right = '20px';
-  popup.style.background = '#333';
-  popup.style.color = '#fff';
-  popup.style.padding = '12px 16px';
-  popup.style.borderRadius = '6px';
-  popup.style.zIndex = '1001';
   
   document.body.appendChild(popup);
   
