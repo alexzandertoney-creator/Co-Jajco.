@@ -3,34 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register - Co? Jajco.</title>
+  <title>Create account · Co? Jajco.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <header class="app-header" style="background-color: var(--primary);">
-    <div style="display:flex; align-items:center; gap: 20px; padding: 8px 16px;">
-      <h1 style="margin: 0;"><img src="/images/logo.01.png" alt="Logo" width="200" height="200"></h1>
-    </div>
-  </header>
-
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; width: 100%;">
-    <div class="form-container">
-      <h1 style="text-align: center; margin-top: 0;">📘 Co? Jajco.</h1>
-      <h2 style="text-align: center;">Create Account</h2>
+  <main class="auth-page">
+    <form class="form-container" id="registerForm" novalidate>
+      <img class="auth-logo" src="/images/logo.01.png" alt="Co? Jajco." width="96" height="96">
+      <h1>Create your account</h1>
+      <p class="meta">Pick what you speak and what you're learning.</p>
 
       <div class="form-group">
         <label for="email">Email</label>
-        <input id="email" type="email" placeholder="your@email.com" />
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input id="password" type="password" placeholder="••••••••" />
+        <input id="password" type="password" autocomplete="new-password" />
       </div>
 
       <div class="form-group">
-        <label for="nativeLang">Native Language</label>
+        <label for="nativeLang">I speak</label>
         <select id="nativeLang">
           <option value="en">English</option>
           <option value="pl">Polish</option>
@@ -38,7 +36,7 @@
       </div>
 
       <div class="form-group">
-        <label for="learningLang">Learning Language</label>
+        <label for="learningLang">I'm learning</label>
         <select id="learningLang">
           <option value="es">Spanish</option>
           <option value="fr">French</option>
@@ -47,14 +45,14 @@
         </select>
       </div>
 
-      <button id="registerBtn" style="width: 100%; padding: 12px; font-size: 16px;">Create Account</button>
+      <button id="registerBtn" type="submit">Create account</button>
 
-      <p style="text-align: center; margin-top: 16px;">
-        Already have an account? <a href="login.html">Sign in</a>
-      </p>
-    </div>
-  </div>
+      <p class="switch">Already have an account? <a href="login.html">Log in</a></p>
+    </form>
+  </main>
 
+  <script src="js/dialogs.js"></script>
+  <script src="js/selects.js"></script>
   <script src="register.js"></script>
 </body>
 </html>

@@ -18,12 +18,19 @@ const register = async ({ email, password, nativeLang, learningLang }) => {
 
   const hashed = await bcrypt.hash(password, 10);
 
-  const result = await db.query(
-    `INSERT INTO users (email, password, "nativeLang", "learningLang")
-     VALUES ($1, $2, $3, $4)
-     RETURNING id`,
-    [email, hashed, nativeLang, learningLang]
-  );
+  let result;
+  try {
+    result = await db.query(
+      `INSERT INTO users (email, password, "nativeLang", "learningLang")
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [email, hashed, nativeLang, learningLang]
+    );
+  } catch (err) {
+    // 23505 = unique_violation: don't leak the raw Postgres message to the browser.
+    if (err.code === '23505') throw new Error('An account with this email already exists. Try logging in.');
+    throw err;
+  }
 
   const token = jwt.sign(
     { id: result.rows[0].id },
@@ -41,10 +48,11 @@ const login = async (email, password) => {
   );
 
   const user = result.rows[0];
-  if (!user) throw new Error('User not found');
+  // One message for both cases so the login form can't be used to discover accounts.
+  if (!user) throw new Error('Invalid email or password');
 
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) throw new Error('Invalid credentials');
+  if (!valid) throw new Error('Invalid email or password');
 
   const token = jwt.sign(
     { id: user.id },

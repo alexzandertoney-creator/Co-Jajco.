@@ -1,385 +1,252 @@
+// ============ REVIEW (spaced repetition) ============
+// Shows the cards whose review date has arrived, plus a few new ones each session.
+// "I knew it" schedules a card further out; "Not yet" brings it back later in
+// this session and resets its schedule. See scheduleCard() in js/utils.js.
+
+import { scheduleCard, isDue, isNew, shuffleArray } from './js/utils.js';
+import { speakText } from './js/tts.js';
+import { loadProfile, recordAnswer } from './js/profile.js';
+import { renderIdentity } from './js/home.js';
+import { mascot } from './js/art.js';
+
+const NEW_PER_SESSION = 10;
+const ALL = 'all';
+
+const $ = (id) => document.getElementById(id);
+const cardEl = $('card');
+const questionEl = $('question');
+const answerEl = $('answer');
+const noteEl = $('answerNote');
+const progressEl = $('cardProgress');
+const deckSelect = $('reviewDeckSelect');
+const speakModeSelect = $('speakMode');
+
+let user = null;
 let decks = [];
-let currentUser = null;
-let selectedDeck = null;
+let queue = [];        // [{ card, deck }]
+let index = 0;
+let frontIsQuestion = true; // question = meaning, answer = word being learned
+let reviewedThisSession = 0;
 
-const langMap = {
-  en: 'en-US',
-  fr: 'fr-FR',
-  es: 'es-ES',
-  pl: 'pl-PL',
-  de: 'de-DE',
-  it: 'it-IT',
-  ja: 'ja-JP',
-  zh: 'zh-CN'
-};
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
-function speakText(text, langCode = currentUser?.learningLang || "en") {
-  if (!window.speechSynthesis) return;
+// ---------- Loading ----------
 
-  const run = () => {
-    speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    const lang = langMap[langCode] || 'en-US';
-
-    const voices = speechSynthesis.getVoices();
-
-    let voice = voices.find(v => v.lang === lang);
-
-    if (!voice) {
-      const baseLang = lang.split("-")[0];
-      voice = voices.find(v => v.lang.startsWith(baseLang));
-    }
-
-    if (voice) utterance.voice = voice;
-
-    utterance.lang = lang;
-    utterance.rate = 0.9;
-
-    speechSynthesis.speak(utterance);
-  };
-
-  if (speechSynthesis.getVoices().length === 0) {
-    speechSynthesis.onvoiceschanged = run;
-  } else {
-    run();
-  }
-}
-speechSynthesis.onvoiceschanged = () => {
-  console.log("Voices loaded:", speechSynthesis.getVoices());
-};
-
-async function saveSelectedDeck() {
-  if (!selectedDeck) return;
-
-  const token = localStorage.getItem("token");
-  try {
-    const res = await fetch(`/api/library/decks/${selectedDeck.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ cards: selectedDeck.cards })
-    });
-
-    if (!res.ok) throw new Error(`Deck update failed: ${res.status}`);
-  } catch (error) {
-    console.error("Failed to save Smart Review progress:", error);
-  }
-}
 async function loadUser() {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    window.location.href = "login.html";
-    return null;
-  }
-
+  if (!localStorage.getItem('token')) return (window.location.href = 'login.html'), null;
   try {
-    const res = await fetch("/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (res.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "login.html";
+    const res = await fetch('/api/auth/me', { headers: authHeaders() });
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
       return null;
     }
-
-    if (!res.ok) {
-      console.error("Auth validation failed for smart review page:", res.status);
-      alert("Unable to verify your login right now. Please try again later.");
-      return null;
-    }
-
-    currentUser = await res.json();
-    return currentUser;
-  } catch (error) {
-    console.error("Failed to fetch current user for smart review page:", error);
-    alert("Cannot reach the server to verify login. Please make sure the backend is running.");
+    if (!res.ok) throw new Error(res.status);
+    return res.json();
+  } catch {
+    toast('Can’t reach the server right now. Refresh to try again.', 'error');
     return null;
   }
 }
-let reviewCards = [];
-let currentIndex = 0;
-let frontIsQuestion = true;
 
-// DOM elements
-const cardEl = document.getElementById("card");
-const questionEl = document.getElementById("question");
-const answerEl = document.getElementById("answer");
-const nextBtn = document.getElementById("next");
-const prevBtn = document.getElementById("prev");
-const correctBtn = document.getElementById("correctBtn");
-const incorrectBtn = document.getElementById("incorrectBtn");
-const swapSidesBtn = document.getElementById("swapSides");
-const progressEl = document.getElementById("cardProgress");
-const reviewDeckSelect = document.getElementById("reviewDeckSelect");
-
-
-
-// speak buttons
-const speakFrontBtn = document.getElementById("speakFrontBtn");
-const speakBackBtn = document.getElementById("speakBackBtn");
-
-[speakFrontBtn, speakBackBtn].forEach(btn => {
-  if (!btn) return;
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation(); // Prevents the card from flipping when clicking the speaker
-    if (!reviewCards.length) return;
-    
-    const currentCard = reviewCards[currentIndex];
-    const isFrontBtn = btn.id === "speakFrontBtn";
-    
-    // Determine what text is actually on the front/back right now
-    const frontText = frontIsQuestion ? currentCard.question : currentCard.answer;
-    const backText = frontIsQuestion ? currentCard.answer : currentCard.question;
-    
-    const textToSpeak = isFrontBtn ? frontText : backText;
-    
-    // Determine language based on whether that text is the 'question' (learning) or 'answer' (native)
-    const lang = (textToSpeak === currentCard.question) 
-                 ? currentUser.learningLang 
-                 : currentUser.nativeLang;
-
-    speakText(textToSpeak, lang);
-  });
-});
-
-
-const speakModeSelect = document.getElementById("speakMode");
-let speakMode = "off";
-
-speakModeSelect.addEventListener("change", () => {
-  speakMode = speakModeSelect.value;
-  
-});
-function autoSpeakCard(cardData) {
-  if (speakMode === "off") return;
-speakModeSelect.blur();
-  const isFlipped = cardEl.classList.contains("flipped");
-
-  // Map what’s currently visible
-  const frontText = frontIsQuestion ? cardData.question : cardData.answer;
-  const backText = frontIsQuestion ? cardData.answer : cardData.question;
-  const visibleText = isFlipped ? backText : frontText;
-
-  // Determine language of visible side
-  const visibleLang = (visibleText === cardData.question)
-    ? currentUser.learningLang
-    : currentUser.nativeLang;
-
-  if (speakMode === "native") {
-    if (visibleLang === currentUser.learningLang) {
-      speakText(visibleText, currentUser.learningLang);
-    }
-  } else if (speakMode === "learning") {
-    if (visibleLang === currentUser.nativeLang) {
-      speakText(visibleText, currentUser.nativeLang);
-    }
-  } else if (speakMode === "both") {
-    // Always speak the visible side
-    speakText(visibleText, visibleLang);
-  }
-}
-
-// --------- INIT ---------
-async function initSmartReview() {
-  const user = await loadUser();
+async function init() {
+  const profileReady = loadProfile();
+  user = await loadUser();
   if (!user) return;
-
-  const token = localStorage.getItem("token");
+  await profileReady;
+  renderIdentity(user);
   try {
-    const res = await fetch("/api/library/decks", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error(`Deck load failed: ${res.status}`);
-    decks = await res.json();
-  } catch (error) {
-    console.error("Failed to load saved decks for Smart Review:", error);
-    questionEl.textContent = "Unable to load your saved decks.";
+    const res = await fetch('/api/library/decks', { headers: authHeaders() });
+    if (!res.ok) throw new Error(res.status);
+    decks = (await res.json()).filter(d => d.learningLang === user.learningLang && d.nativeLang === user.nativeLang);
+  } catch {
+    toast('Couldn’t load your decks. Refresh to try again.', 'error');
     return;
   }
 
-  const matchingDecks = decks.filter(deck =>
-    deck.learningLang === user.learningLang && deck.nativeLang === user.nativeLang
-  );
-  reviewDeckSelect.innerHTML = "";
-
-  matchingDecks.forEach(deck => {
-    const option = document.createElement("option");
-    option.value = String(deck.id);
-    option.textContent = `${deck.name} (${deck.cards?.length || 0})`;
-    reviewDeckSelect.appendChild(option);
-  });
-
-  reviewDeckSelect.disabled = matchingDecks.length === 0;
-  if (!matchingDecks.length) {
-    questionEl.textContent = "No saved decks for this language pair.";
-    return;
-  }
-
-  reviewDeckSelect.addEventListener("change", () => loadSelectedDeck());
-  loadSelectedDeck();
+  const dueIn = (deck) => deck.cards.filter(c => isDue(c)).length;
+  deckSelect.replaceChildren(new Option(`All decks`, ALL));
+  decks.forEach(d => deckSelect.add(new Option(`${d.name}${dueIn(d) ? ` (${dueIn(d)} due)` : ''}`, String(d.id))));
+  deckSelect.addEventListener('change', buildQueue);
+  buildQueue();
 }
 
-function loadSelectedDeck() {
-  selectedDeck = decks.find(deck => String(deck.id) === reviewDeckSelect.value);
-  const cards = selectedDeck?.cards || [];
-  reviewCards = cards
-    .map(card => {
-      if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
-      return card;
-    })
-    .sort((a, b) => {
-      const totalA = a.stats.correct + a.stats.incorrect || 1;
-      const totalB = b.stats.correct + b.stats.incorrect || 1;
+function buildQueue() {
+  const chosen = deckSelect.value === ALL ? decks : decks.filter(d => String(d.id) === deckSelect.value);
+  const items = chosen.flatMap(deck => (deck.cards || []).map(card => ({ card, deck })));
+  const due = items.filter(i => isDue(i.card)).sort((a, b) => a.card.srs.due - b.card.srs.due);
+  const fresh = shuffleArray(items.filter(i => isNew(i.card))).slice(0, NEW_PER_SESSION);
+  queue = [...due, ...fresh];
+  index = 0;
+  reviewedThisSession = 0;
 
-      return (a.stats.correct / totalA) - (b.stats.correct / totalB);
-    })
-    .slice(0, 20);
-
-  if (reviewCards.length === 0) {
-    questionEl.textContent = "No cards in this deck.";
-    answerEl.textContent = "";
-    progressEl.textContent = "";
-    return;
-  }
-
-  currentIndex = 0;
+  $('reviewSummary').textContent = queue.length
+    ? `${due.length} due for review${fresh.length ? ` · ${fresh.length} new` : ''}`
+    : 'Cards come back right before you’d forget them.';
+  updateBadge();
   showCard();
 }
-function flipCard() {
-  cardEl.classList.toggle("flipped");
 
-  setTimeout(() => {
-    if (reviewCards.length) {
-      autoSpeakCard(reviewCards[currentIndex]);
-    }
-  }, 50);
-}
+// ---------- Session ----------
 
 function showCard() {
-  if (!reviewCards.length) {
-    questionEl.textContent = "🎉 All done!";
-    answerEl.textContent = "";
-    progressEl.textContent = "";
-    return;
-  }
+  const done = !queue.length;
+  $('smartReviewContainer').style.display = done ? 'none' : 'flex';
+  $('reviewDone').hidden = !done;
+  if (done) return renderDone();
 
-  const c = reviewCards[currentIndex];
-
-  // Force front
-  cardEl.classList.add("no-transition");
-cardEl.classList.remove("flipped");
-
+  const { card } = queue[index];
+  cardEl.classList.add('no-transition');
+  cardEl.classList.remove('flipped');
   requestAnimationFrame(() => {
-    if (frontIsQuestion) {
-      questionEl.textContent = c.question;
-      answerEl.textContent = c.answer;
-    } else {
-      questionEl.textContent = c.answer;
-      answerEl.textContent = c.question;
-    }
-    requestAnimationFrame(() => cardEl.classList.remove("no-transition"));
+    questionEl.textContent = frontIsQuestion ? card.question : card.answer;
+    answerEl.textContent = frontIsQuestion ? card.answer : card.question;
+    noteEl.textContent = card.note || '';
+    noteEl.hidden = !card.note;
+    requestAnimationFrame(() => cardEl.classList.remove('no-transition'));
+    autoSpeak();
   });
-
-  progressEl.textContent = `${currentIndex + 1} / ${reviewCards.length}`;
-  autoSpeakCard(c);
+  progressEl.textContent = `${index + 1} / ${queue.length}`;
 }
-correctBtn.addEventListener("click", () => {
-  if (!reviewCards.length) return;
 
-  const currentCard = reviewCards[currentIndex];
+function answer(correct) {
+  if (!queue.length) return;
+  const item = queue[index];
+  const { card, deck } = item;
+  if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
+  card.stats[correct ? 'correct' : 'incorrect']++;
+  scheduleCard(card, correct);
+  saveDeck(deck);
+  recordAnswer();
+  reviewedThisSession++;
 
-  currentCard.stats.correct++;
-  saveSelectedDeck();
-
-  reviewCards.splice(currentIndex, 1);
-
-  if (currentIndex >= reviewCards.length) currentIndex = 0;
-
+  queue.splice(index, 1);
+  if (!correct) queue.push(item); // try it again before the session ends
+  if (index >= queue.length) index = 0;
+  updateBadge();
   showCard();
-});
+}
 
-incorrectBtn.addEventListener("click", () => {
-  if (!reviewCards.length) return;
+function renderDone() {
+  $('reviewSummary').textContent = reviewedThisSession
+    ? `Session complete · ${reviewedThisSession} review${reviewedThisSession === 1 ? '' : 's'}`
+    : 'Cards come back right before you’d forget them.';
+  const box = $('reviewDone');
+  box.replaceChildren();
+  const h = document.createElement('h2');
+  const p = document.createElement('p');
+  p.className = 'meta';
+  const all = decks.flatMap(d => d.cards || []);
 
-  const currentCard = reviewCards[currentIndex];
-
-  currentCard.stats.incorrect++;
-  saveSelectedDeck();
-
-  reviewCards.push(reviewCards.splice(currentIndex, 1)[0]);
-
-  showCard();
-});
-
-
-nextBtn.addEventListener("click", () => {
-  currentIndex = (currentIndex + 1) % reviewCards.length;
-  showCard();
-});
-prevBtn.addEventListener("click", () => {
-  currentIndex = (currentIndex - 1 + reviewCards.length) % reviewCards.length;
-  showCard();
-});
-
-swapSidesBtn.addEventListener("click", () => {
-  frontIsQuestion = !frontIsQuestion;
-  showCard();
-});
-
-// --------- START ---------
-initSmartReview();
-document.body.classList.add("study-mode");
-document.addEventListener("keydown", (e) => {
-   if (document.activeElement === speakModeSelect) {
-    speakModeSelect.blur();
+  if (!all.length) {
+    h.textContent = 'Nothing to review yet';
+    p.textContent = 'Add a deck and study it once. Cards then come back here when they’re due.';
+  } else {
+    h.textContent = reviewedThisSession ? 'All caught up!' : 'Nothing due right now';
+    const next = Math.min(...all.filter(c => c.srs && c.srs.due > Date.now()).map(c => c.srs.due));
+    p.textContent = Number.isFinite(next)
+      ? `Next review ${whenText(next)}. Come back then and these words will stick.`
+      : 'Study some cards and they’ll be scheduled here.';
   }
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const home = document.createElement('a');
+  home.href = 'index.html';
+  home.className = 'button-link';
+  home.textContent = 'Back to studying';
+  actions.appendChild(home);
+  const art = document.createElement('div');
+  art.innerHTML = mascot(reviewedThisSession ? 'cheer' : 'rest');
+  box.append(art.firstElementChild, h, p, actions);
+}
 
-  if (!reviewCards.length) return;
+function whenText(ts) {
+  const days = Math.round((new Date(ts).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+  if (days <= 0) return 'later today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+}
 
-  if (e.key === "c") correctBtn.click();
-  if (e.key === "i") incorrectBtn.click();
-
-  switch (e.key) {
-    case "ArrowRight":
-      currentIndex = (currentIndex + 1) % reviewCards.length;
-      showCard();
-      break;
-
-    case "ArrowLeft":
-      currentIndex = (currentIndex - 1 + reviewCards.length) % reviewCards.length;
-      showCard();
-      break;
-
-    case " ":
-      e.preventDefault();
-      flipCard();
-      break;
-  }
-});
-cardEl.addEventListener("click", (e) => {
-  // If we clicked a button inside the card, don't flip and don't auto-speak
-  if (e.target.closest("button")) return;
-  
-  flipCard();
-});
-
-// Reload page when learning language changes elsewhere so review set updates
-window.addEventListener('storage', (e) => {
-  if (e.key === 'learningLang') {
-    try { location.reload(); } catch (err) { /* ignore */ }
-  }
-});
-
-// Logout button handler (clears token and redirects)
-document.addEventListener('DOMContentLoaded', () => {
-  const lb = document.getElementById('logoutBtn');
-  if (lb) lb.addEventListener('click', () => {
-    localStorage.removeItem('token');
-    window.location.href = 'login.html';
+// Saves per deck run one after another so an older PUT can't land after a newer one.
+const saveChains = new Map();
+function saveDeck(deck) {
+  const prev = saveChains.get(deck.id) || Promise.resolve();
+  const next = prev.then(async () => {
+    try {
+      const res = await fetch(`/api/library/decks/${deck.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ cards: deck.cards }),
+      });
+      if (!res.ok) throw new Error(res.status);
+    } catch {
+      toast('Couldn’t save your progress. Check your connection.', 'error');
+    }
   });
+  saveChains.set(deck.id, next);
+}
+
+function updateBadge() {
+  const badge = $('dueBadge');
+  if (!badge) return;
+  const n = decks.reduce((sum, d) => sum + (d.cards || []).filter(c => isDue(c)).length, 0);
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n === 0;
+}
+
+// ---------- Speech ----------
+
+function speakSide(back) {
+  const { card } = queue[index] || {};
+  if (!card) return;
+  // question = meaning (native language), answer = word being learned
+  const showingQuestion = frontIsQuestion !== back;
+  speakText(showingQuestion ? card.question : card.answer, showingQuestion ? user.nativeLang : user.learningLang);
+}
+
+function autoSpeak() {
+  const mode = speakModeSelect.value;
+  if (mode === 'off' || !queue.length) return;
+  const flipped = cardEl.classList.contains('flipped');
+  const showingQuestion = frontIsQuestion !== flipped;
+  if (mode === 'both' || (mode === 'learning' && !showingQuestion) || (mode === 'native' && showingQuestion)) speakSide(flipped);
+}
+
+// ---------- Controls ----------
+
+function flip() {
+  cardEl.classList.toggle('flipped');
+  setTimeout(autoSpeak, 50);
+}
+const step = (d) => {
+  if (!queue.length) return;
+  index = (index + d + queue.length) % queue.length;
+  showCard();
+};
+
+$('correctBtn').addEventListener('click', () => answer(true));
+$('incorrectBtn').addEventListener('click', () => answer(false));
+$('next').addEventListener('click', () => step(1));
+$('prev').addEventListener('click', () => step(-1));
+$('swapSides').addEventListener('click', () => { frontIsQuestion = !frontIsQuestion; showCard(); });
+$('speakFrontBtn').addEventListener('click', (e) => { e.stopPropagation(); speakSide(false); });
+$('speakBackBtn').addEventListener('click', (e) => { e.stopPropagation(); speakSide(true); });
+cardEl.addEventListener('click', (e) => { if (!e.target.closest('button')) flip(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || !queue.length) return;
+  if (e.target.closest('input, textarea, select, [contenteditable], .select-wrap') || document.querySelector('dialog[open]')) return;
+  if (e.key === ' ') { e.preventDefault(); flip(); }
+  else if (e.key === 'ArrowRight') step(1);
+  else if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'c' || e.key === '2') answer(true);
+  else if (e.key === 'i' || e.key === '1') answer(false);
 });
+
+$('logoutBtn')?.addEventListener('click', () => {
+  localStorage.removeItem('token');
+  window.location.href = 'login.html';
+});
+
+document.body.classList.add('study-mode');
+init();

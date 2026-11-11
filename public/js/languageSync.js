@@ -1,35 +1,45 @@
-// Keeps any `#languageSelect` inputs in sync across open pages/tabs using localStorage
+// The "Learning" picker on every page. The server is the source of truth:
+// show the account's language, save changes to the server, then reload so every
+// part of the page (decks, prompts, voices) uses the new language. Other open
+// tabs reload too.
 (function () {
-  function init() {
+  const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+  async function init() {
     const sel = document.getElementById('languageSelect');
-    if (!sel) return;
+    if (!sel || !localStorage.getItem('token')) return;
 
-    // Initialize from localStorage if present
     try {
-      const stored = localStorage.getItem('learningLang');
-      if (stored) sel.value = stored;
-    } catch (e) {
-      // ignore
-    }
+      const res = await fetch('/api/auth/me', { headers: authHeader() });
+      if (res.ok) {
+        const user = await res.json();
+        if (user.learningLang) sel.value = user.learningLang;
+      }
+    } catch { /* page scripts report connection problems */ }
+    let current = sel.value;
 
-    sel.addEventListener('change', () => {
+    sel.addEventListener('change', async () => {
+      const next = sel.value;
+      sel.disabled = true;
       try {
-        localStorage.setItem('learningLang', sel.value);
-      } catch (e) {}
-      // Notify same-window listeners
-      window.dispatchEvent(new CustomEvent('languageChanged', { detail: sel.value }));
-    });
-
-    // Listen for storage events from other tabs/windows
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'learningLang') {
-        if (sel.value !== e.newValue) sel.value = e.newValue;
+        const res = await fetch('/api/auth/me/language', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ learningLang: next }),
+        });
+        if (!res.ok) throw new Error(res.status);
+        localStorage.setItem('learningLang', next); // pings other tabs
+        window.flash?.(`Now learning ${sel.selectedOptions[0].textContent}`, 'success');
+        location.reload();
+      } catch {
+        sel.value = current;
+        sel.disabled = false;
+        window.toast?.('Couldn’t change the language. Try again.', 'error');
       }
     });
 
-    // Mirror custom same-window events
-    window.addEventListener('languageChanged', (e) => {
-      if (sel.value !== e.detail) sel.value = e.detail;
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'learningLang' && e.newValue && e.newValue !== current) location.reload();
     });
   }
 

@@ -1,3 +1,4 @@
+import { mascot } from './art.js';
 // ============ UI & DOM MANAGEMENT ============
 
 import { MODES } from './constants.js';
@@ -62,7 +63,6 @@ export const storyInput = document.getElementById('storyInput');
 export const analyzeStoryBtn = document.getElementById('analyzeStory');
 export const storyDisplay = document.getElementById('storyDisplay');
 export const unknownWordsList = document.getElementById('unknownWordsList');
-export const createDeckFromStory = document.getElementById('createDeckFromStory');
 export const speakStoryBtn = document.getElementById('speakStoryBtn');
 export const stopStoryBtn = document.getElementById('stopStoryBtn');
 export const ignoreBasicWords = document.getElementById('ignoreBasicWords');
@@ -96,6 +96,8 @@ export function renderMode(mode) {
   document.querySelectorAll('.mode-container').forEach(c => c.style.display = 'none');
 
   const containerId =
+    mode === MODES.HOME ? 'homeContainer' :
+    mode === MODES.PROFILE ? 'profileContainer' :
     mode === MODES.FLASHCARDS ? 'flashcardContainer' :
     mode === MODES.LEARN ? 'learnContainer' :
     mode === MODES.TEST ? 'testContainer' :
@@ -106,8 +108,15 @@ export function renderMode(mode) {
     null;
 
   if (containerId) {
-    document.getElementById(containerId).style.display = 'block';
+    document.getElementById(containerId).style.display = 'flex';
   }
+  // Study sub-modes share one main-nav entry; body[data-group] drives which page chrome shows.
+  const group = ['flashcards', 'learn', 'test', 'match'].includes(mode) ? 'study' : mode;
+  document.body.dataset.group = group;
+  document.querySelectorAll('.mode-selector button').forEach(b => {
+    const active = b.dataset.group ? b.dataset.group === group : b.dataset.mode === mode;
+    b.setAttribute('aria-current', active ? 'page' : 'false');
+  });
 }
 
 /**
@@ -149,22 +158,8 @@ export function showLoading(element, show = true) {
 /**
  * Show popup message
  */
-export function showPopup(message) {
-  const popup = document.createElement('div');
-  popup.className = 'popup';
-  popup.textContent = message;
-  popup.style.position = 'fixed';
-  popup.style.top = '20px';
-  popup.style.right = '20px';
-  popup.style.background = '#333';
-  popup.style.color = '#fff';
-  popup.style.padding = '12px 16px';
-  popup.style.borderRadius = '6px';
-  popup.style.zIndex = '1001';
-  
-  document.body.appendChild(popup);
-  
-  setTimeout(() => popup.remove(), 3000);
+export function showPopup(message, tone = 'info') {
+  window.toast(message, tone);
 }
 
 /**
@@ -174,4 +169,87 @@ export function clearInputs(...inputs) {
   inputs.forEach(input => {
     if (input) input.value = '';
   });
+}
+
+/**
+ * End-of-round screen shared by Learn and Test.
+ * actions: [{ label, onClick, ghost }]
+ */
+export function renderResults(el, { correct, total, actions = [] }) {
+  const pct = total ? Math.round((correct / total) * 100) : 0;
+  const message =
+    pct === 100 ? 'Perfect round. Every answer right.' :
+    pct >= 80 ? 'Great work. Nearly all of them.' :
+    pct >= 50 ? 'Good progress. Another round will make these stick.' :
+    'These are still new. Repetition is how they stick.';
+
+  el.replaceChildren();
+  const score = document.createElement('p');
+  score.className = 'results-score';
+  score.textContent = `${correct} / ${total}`;
+  const title = document.createElement('h2');
+  title.textContent = 'Round complete';
+  const note = document.createElement('p');
+  note.className = 'meta';
+  note.textContent = message;
+  const row = document.createElement('div');
+  row.className = 'actions';
+  actions.forEach(({ label, onClick, ghost }) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    if (ghost) b.className = 'ghost';
+    b.addEventListener('click', onClick);
+    row.appendChild(b);
+  });
+  const art = document.createElement('div');
+  art.innerHTML = mascot(pct >= 50 ? 'cheer' : 'wave');
+  el.append(art.firstElementChild, title, score, note, row);
+  el.hidden = false;
+  row.querySelector('button')?.focus({ preventScroll: true });
+}
+
+/**
+ * Empty states for the Study section: no decks at all, or a deck with no cards.
+ * The Study modes are hidden by CSS while body[data-empty] is set.
+ */
+export function renderDeckState(deck, deckCount) {
+  const box = document.getElementById('deckEmpty');
+  const empty = !deckCount ? 'none' : !deck?.cards?.length ? 'cards' : '';
+  if (empty) document.body.dataset.empty = empty;
+  else delete document.body.dataset.empty;
+  if (!box) return;
+  box.hidden = !empty;
+  if (!empty) return;
+
+  box.replaceChildren();
+  const h = document.createElement('h2');
+  const p = document.createElement('p');
+  p.className = 'meta';
+  const row = document.createElement('div');
+  row.className = 'actions';
+  const primary = document.createElement('button');
+  primary.type = 'button';
+
+  if (empty === 'none') {
+    h.textContent = 'Start your first deck';
+    p.textContent = 'Make your own deck, or add a ready-made starter deck for your level.';
+    primary.textContent = 'Browse starter decks';
+    primary.addEventListener('click', () => { window.location.href = 'recommended.html'; });
+    const create = document.createElement('button');
+    create.type = 'button';
+    create.className = 'ghost';
+    create.textContent = 'Create a deck';
+    create.addEventListener('click', () => newDeckBtn?.click());
+    row.append(primary, create);
+  } else {
+    h.textContent = `“${deck.name}” has no cards yet`;
+    p.textContent = 'Add a few words to start practising.';
+    primary.textContent = 'Add cards';
+    primary.addEventListener('click', () => document.querySelector('[data-mode="deckEditor"]')?.click());
+    row.append(primary);
+  }
+  const art = document.createElement('div');
+  art.innerHTML = mascot('wave');
+  box.append(art.firstElementChild, h, p, row);
 }

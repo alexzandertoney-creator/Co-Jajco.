@@ -1,6 +1,6 @@
 // ============ DATA MANAGEMENT ============
 
-import { buildMasterVocab } from './utils.js';
+import { buildMasterVocab, scheduleCard } from './utils.js';
 
 // Global state
 export let decks = [];
@@ -40,12 +40,12 @@ export async function loadUser() {
       }
     });
 
-    if (!res.ok) {
-      console.error('Auth failed:', res.status);
+    if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
       window.location.href = 'login.html';
       return;
     }
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
 
     const user = await res.json();
     setCurrentUser(user);
@@ -56,10 +56,10 @@ export async function loadUser() {
     
     return user;
   } catch (error) {
+    // Network/server trouble: keep the session, tell the user.
     console.error('Failed to load user:', error);
-    localStorage.removeItem('token');
-    window.location.href = 'login.html';
-    return;
+    window.toast?.('Can’t reach the server right now. Refresh to try again.', 'error');
+    throw error;
   }
 }
 
@@ -146,7 +146,8 @@ export function updateFilteredDecks() {
 /**
  * Create new deck (async)
  */
-export async function createDeck(name, learningLang, nativeLang) {
+// cards: optional initial cards, saved in the same request (imports used to PUT once per card).
+export async function createDeck(name, learningLang, nativeLang, cards = []) {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -165,7 +166,7 @@ export async function createDeck(name, learningLang, nativeLang) {
         name,
         learningLang,
         nativeLang,
-        cards: []
+        cards
       })
     });
 
@@ -232,7 +233,7 @@ export async function deleteDeck(deckId) {
 /**
  * Add card to deck (async)
  */
-export async function addCardToDeck(deckId, question, answer) {
+export async function addCardToDeck(deckId, question, answer, note = '') {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -257,6 +258,7 @@ export async function addCardToDeck(deckId, question, answer) {
     deck.cards.push({
       question,
       answer,
+      ...(note ? { note } : {}),
       stats: { correct: 0, incorrect: 0 }
     });
 
@@ -284,7 +286,7 @@ export async function addCardToDeck(deckId, question, answer) {
 }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card added to deck:', deckId);
     return true;
   } catch (error) {
@@ -322,9 +324,12 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
     return false;
   }
 
+  // Declared outside try so the catch block can roll back.
+
+  let removedCard = [];
+
   try {
-    // Remove card from local deck first
-    const removedCard = deck.cards.splice(cardIndex, 1);
+    removedCard = deck.cards.splice(cardIndex, 1);
 
     // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
@@ -346,7 +351,7 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card deleted from deck:', deckId);
     return true;
   } catch (error) {
@@ -362,7 +367,7 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
 /**
  * Update card in deck (async)
  */
-export async function updateCard(deckId, cardIndex, question, answer) {
+export async function updateCard(deckId, cardIndex, question, answer, note) {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -381,11 +386,16 @@ export async function updateCard(deckId, cardIndex, question, answer) {
     return false;
   }
 
+  // Declared outside try so the catch block can roll back.
+  const oldCard = { ...deck.cards[cardIndex] };
   try {
     // Update local deck first
-    const oldCard = { ...deck.cards[cardIndex] };
     deck.cards[cardIndex].question = question;
     deck.cards[cardIndex].answer = answer;
+    if (note !== undefined) {
+      if (note) deck.cards[cardIndex].note = note;
+      else delete deck.cards[cardIndex].note;
+    }
 
     // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
@@ -402,18 +412,18 @@ export async function updateCard(deckId, cardIndex, question, answer) {
     if (!res.ok) {
       console.error('Failed to update deck:', res.status);
       // Restore old card
-      deck.cards[cardIndex] = oldCard;
+      Object.assign(deck.cards[cardIndex], oldCard);
       return false;
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card updated in deck:', deckId);
     return true;
   } catch (error) {
     console.error('Failed to update card:', error);
     // Restore old card
-    deck.cards[cardIndex] = oldCard;
+    Object.assign(deck.cards[cardIndex], oldCard);
     return false;
   }
 }
@@ -435,52 +445,40 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     return false;
   }
 
+  const card = deck.cards[cardIndex];
+  if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
+  const before = { stats: { ...card.stats }, srs: card.srs, lastReviewed: card.lastReviewed };
+  // If the save fails, put the card back exactly as it was.
+  const revert = () => Object.assign(card, before);
+
   try {
-    // Update local card first
-    if (!deck.cards[cardIndex].stats) {
-      deck.cards[cardIndex].stats = { correct: 0, incorrect: 0 };
-    }
+    if (correct) card.stats.correct++;
+    else card.stats.incorrect++;
+    // Every answer, in any mode, feeds the spaced-repetition schedule.
+    scheduleCard(card, correct);
+    window.dispatchEvent(new Event('reviewScheduleChanged'));
 
-    if (correct) {
-      deck.cards[cardIndex].stats.correct++;
-    } else {
-      deck.cards[cardIndex].stats.incorrect++;
-    }
-
-    // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        cards: deck.cards
-      })
+      body: JSON.stringify({ cards: deck.cards })
     });
 
     if (!res.ok) {
       console.error('Failed to update stats:', res.status);
-      // Revert the stat change
-      if (correct) {
-        deck.cards[cardIndex].stats.correct--;
-      } else {
-        deck.cards[cardIndex].stats.incorrect--;
-      }
+      revert();
       return false;
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     return true;
   } catch (error) {
     console.error('Failed to update card stats:', error);
-    // Revert the stat change
-    if (correct) {
-      deck.cards[cardIndex].stats.correct--;
-    } else {
-      deck.cards[cardIndex].stats.incorrect--;
-    }
+    revert();
     return false;
   }
 }
@@ -532,4 +530,39 @@ export function getCard(deckIndex, cardIndex) {
  */
 export function isMasterVocab(deckId) {
   return deckId === 'master-vocab';
+}
+
+/**
+ * Apply the server's copy of a deck's cards while keeping the existing card objects,
+ * so modes holding references (learn/match sessions, Master Vocab) stay in sync.
+ */
+function syncCards(deck, serverCards) {
+  if (!Array.isArray(serverCards)) return;
+  serverCards.forEach((c, i) => {
+    if (deck.cards[i]) Object.assign(deck.cards[i], c);
+    else deck.cards[i] = c;
+  });
+  deck.cards.length = serverCards.length;
+}
+
+/**
+ * Replace all of a deck's cards in one save (used by "Swap sides of all cards").
+ */
+export async function setDeckCards(deckId, cards) {
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck || deckId === 'master-vocab') return false;
+  try {
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ cards })
+    });
+    if (!res.ok) return false;
+    const updated = await res.json();
+    syncCards(deck, updated.cards);
+    return true;
+  } catch (error) {
+    console.error('Failed to save deck cards:', error);
+    return false;
+  }
 }

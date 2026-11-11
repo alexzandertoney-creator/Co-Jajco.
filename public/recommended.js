@@ -1,4 +1,6 @@
 import { recommendedVocabSets } from "./recommendedSets.js";
+import { loadProfile } from "./js/profile.js";
+import { renderIdentity } from "./js/home.js";
 
 let selectedDecks = [];
 
@@ -38,7 +40,7 @@ async function loadUser() {
 
     if (!res.ok) {
       console.error("Auth validation failed for recommended page:", res.status);
-      alert("Unable to verify your login right now. Please try again later.");
+      toast("Unable to verify your login right now. Please try again later.", 'error');
       return null;
     }
 
@@ -49,45 +51,90 @@ async function loadUser() {
     return user;
   } catch (error) {
     console.error("Failed to fetch current user for recommended page:", error);
-    alert("Cannot reach the server to verify login. Please make sure the backend is running.");
+    toast("Cannot reach the server to verify login. Please make sure the backend is running.", 'error');
     return null;
   }
 }
 
 async function init() {
+  const profileReady = loadProfile();
   await loadUser();
+  await profileReady;
+  renderIdentity(window.currentUser);
+  await loadExistingDecks();
   await renderRecommendedDecks();
+  updateAddButton();
 
-  // Attach handler for the "Add Selected Decks" button after rendering
   const addBtn = document.getElementById("addSelectedDecks");
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      // Find all checkboxes in deck cards and add checked ones to storage
-      const checkboxes = document.querySelectorAll('.deck-card input[type="checkbox"]');
-      checkboxes.forEach(cb => {
-        if (cb.checked) {
-          const name = cb.dataset.name;
-          const learningLang = cb.dataset.learningLang;
-          const nativeLang = cb.dataset.nativeLang;
-          const set = recommendedVocabSets.find(s =>
-            s.name === name && s.learningLang === learningLang && s.nativeLang === nativeLang
-          );
-          if (set) addDeckToStorage(set);
-        } else {
-          // if unchecked, optionally remove from storage
-          const name = cb.dataset.name;
-          const learningLang = cb.dataset.learningLang;
-          const nativeLang = cb.dataset.nativeLang;
-          const set = recommendedVocabSets.find(s =>
-            s.name === name && s.learningLang === learningLang && s.nativeLang === nativeLang
-          );
-          if (set) removeDeckFromStorage(set);
-        }
-      });
+  addBtn?.addEventListener("click", addSelectedDecks);
+}
 
-      alert("Decks updated!");
-      window.location.href = "index.html";
-    });
+// Names of decks the user already has for this language pair, so starter decks aren't added twice.
+let existingNames = new Set();
+async function loadExistingDecks() {
+  const user = window.currentUser;
+  if (!user) return;
+  try {
+    const res = await fetch("/api/library/decks", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+    if (!res.ok) throw new Error(res.status);
+    const decks = await res.json();
+    existingNames = new Set(decks
+      .filter(d => d.learningLang === user.learningLang && d.nativeLang === user.nativeLang)
+      .map(d => d.name));
+  } catch (e) {
+    console.error("Failed to load existing decks", e);
+  }
+}
+
+function checkedSets() {
+  return [...document.querySelectorAll('.deck-card input[type="checkbox"]:checked:not(:disabled)')]
+    .map(cb => recommendedVocabSets.find(s =>
+      s.name === cb.dataset.name && s.learningLang === cb.dataset.learningLang && s.nativeLang === cb.dataset.nativeLang))
+    .filter(Boolean);
+}
+
+function updateAddButton() {
+  const btn = document.getElementById("addSelectedDecks");
+  if (!btn) return;
+  const n = checkedSets().length;
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Add ${n} deck${n === 1 ? "" : "s"}` : "Select decks to add";
+}
+
+// The main app loads decks from the server, so starter decks must be created there
+// (they used to be written to localStorage, which nothing read).
+async function addSelectedDecks() {
+  const sets = checkedSets();
+  if (!sets.length) return;
+  const btn = document.getElementById("addSelectedDecks");
+  btn.disabled = true;
+  btn.textContent = "Adding…";
+  let added = 0;
+  for (const set of sets) {
+    try {
+      const res = await fetch("/api/library/decks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify({
+          name: set.name,
+          learningLang: set.learningLang,
+          nativeLang: set.nativeLang,
+          cards: set.cards.map(c => ({ question: c.question, answer: c.answer, stats: { correct: 0, incorrect: 0 } })),
+        }),
+      });
+      if (res.ok) added++;
+    } catch (e) {
+      console.error("Failed to add deck", set.name, e);
+    }
+  }
+  if (added === sets.length) {
+    flash(`Added ${added} deck${added === 1 ? "" : "s"}. Happy studying!`, "success");
+    window.location.href = "index.html";
+  } else {
+    toast(`Added ${added} of ${sets.length} decks. Try the rest again.`, "error");
+    await loadExistingDecks();
+    await renderRecommendedDecks();
+    updateAddButton();
   }
 }
 
@@ -130,7 +177,6 @@ const nativeLang = user.nativeLang;  // native language
     col.innerHTML = "";
   });
 
-  const decksInStorage = JSON.parse(localStorage.getItem("decks") || "[]");
 
   // Filter sets that match the user's native/learning languages
  const matchingSets = recommendedVocabSets.filter(
@@ -139,33 +185,31 @@ const nativeLang = user.nativeLang;  // native language
 );
 
   matchingSets.forEach(set => {
-    const alreadyAdded = decksInStorage.some(d =>
-      d.name === set.name &&
-      d.learningLang === learningLang &&
-      d.nativeLang === nativeLang
-    );
+    const alreadyAdded = existingNames.has(set.name);
 
-    const card = document.createElement("div");
+    // A <label> wrapper makes the whole row toggle the checkbox.
+    const card = document.createElement("label");
     card.className = "deck-card";
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = alreadyAdded;
+    checkbox.disabled = alreadyAdded;
     // store identifying info so the global handler can find the set
     checkbox.dataset.name = set.name;
     checkbox.dataset.learningLang = set.learningLang;
     checkbox.dataset.nativeLang = set.nativeLang;
 
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) addDeckToStorage(set);
-      else removeDeckFromStorage(set);
-    });
+    checkbox.addEventListener("change", updateAddButton);
 
-    const label = document.createElement("label");
+    const label = document.createElement("span");
+    label.className = "deck-card-name";
     label.textContent = set.name;
+    const count = document.createElement("span");
+    count.className = "meta";
+    count.textContent = alreadyAdded ? "Added" : `${set.cards.length} cards`;
 
-    card.appendChild(checkbox);
-    card.appendChild(label);
+    card.append(checkbox, label, count);
 
     if (set.category === "PreA1") colPreA1.appendChild(card);
     else if (set.category === "A1") colA1.appendChild(card);
@@ -182,37 +226,3 @@ const nativeLang = user.nativeLang;  // native language
     }
   });
 }
-
-// Add deck to localStorage
-function addDeckToStorage(set) {
-  const decks = JSON.parse(localStorage.getItem("decks") || "[]");
-  const exists = decks.some(d =>
-    d.name === set.name &&
-    d.learningLang === set.learningLang &&
-    d.nativeLang === set.nativeLang
-  );
-
-  if (!exists) {
-    decks.push({
-      id: Date.now() + Math.random(),
-      name: set.name,
-      learningLang: set.learningLang,
-      nativeLang: set.nativeLang,
-      cards: set.cards.map(c => ({ ...c }))
-    });
-  }
-  localStorage.setItem("decks", JSON.stringify(decks));
-}
-
-// Remove deck from localStorage
-function removeDeckFromStorage(set) {
-  let decks = JSON.parse(localStorage.getItem("decks") || "[]");
-  decks = decks.filter(d =>
-    !(d.name === set.name &&
-      d.learningLang === set.learningLang &&
-      d.nativeLang === set.nativeLang)
-  );
-  localStorage.setItem("decks", JSON.stringify(decks));
-}
-
-// Render decks after user is loaded

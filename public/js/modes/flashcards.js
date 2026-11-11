@@ -34,9 +34,13 @@ export class FlashcardsMode {
   showClassicCard(deck, learningLang) {
     if (!deck || !deck.cards.length) return;
 
-    const currentCard = this.activeFlashcards.length
-      ? this.activeFlashcards[this.currentCardIndex]
-      : deck.cards[this.currentCardIndex];
+    const cards = this.activeFlashcards.length ? this.activeFlashcards : deck.cards;
+    // Guard against an index left over from a longer deck.
+    if (this.currentCardIndex >= cards.length) this.currentCardIndex = 0;
+    const currentCard = cards[this.currentCardIndex];
+
+    const progressEl = document.getElementById('cardProgress');
+    if (progressEl) progressEl.textContent = `${this.currentCardIndex + 1} / ${cards.length}`;
 
     if (!currentCard.stats) {
       currentCard.stats = { correct: 0, incorrect: 0 };
@@ -54,6 +58,7 @@ export class FlashcardsMode {
         questionEl.textContent = currentCard.answer;
         answerEl.textContent = currentCard.question;
       }
+      showNote(currentCard);
 
       requestAnimationFrame(() => {
         card.classList.remove('no-transition');
@@ -62,10 +67,6 @@ export class FlashcardsMode {
       this.autoSpeak(currentCard, deck, learningLang);
     });
 
-    const statsEl = document.getElementById('cardStats');
-    if (statsEl) {
-      statsEl.textContent = `✅ ${currentCard.stats.correct} | ❌ ${currentCard.stats.incorrect}`;
-    }
   }
 
   /**
@@ -73,12 +74,13 @@ export class FlashcardsMode {
    */
   showStudyCard(deck, learningLang) {
     if (!this.sessionCards || this.sessionCards.length === 0) {
-      questionEl.textContent = '🎉 Done!';
-      answerEl.textContent = 'You finished the set';
+      questionEl.textContent = 'All done!';
+      answerEl.textContent = 'You knew every card. Turn study mode off and on to go again.';
+      showNote(null);
       card.classList.remove('flipped');
 
       const progressEl = document.getElementById('cardProgress');
-      if (progressEl) progressEl.textContent = '✅ Complete!';
+      if (progressEl) progressEl.textContent = 'Complete';
       return;
     }
 
@@ -100,6 +102,7 @@ export class FlashcardsMode {
         questionEl.textContent = currentCard.answer;
         answerEl.textContent = currentCard.question;
       }
+      showNote(currentCard);
 
       requestAnimationFrame(() => {
         card.classList.remove('no-transition');
@@ -107,10 +110,6 @@ export class FlashcardsMode {
     });
 
     // Stats
-    const statsEl = document.getElementById('cardStats');
-    if (statsEl) {
-      statsEl.textContent = `✅ ${currentCard.stats.correct} | ❌ ${currentCard.stats.incorrect}`;
-    }
 
     // Progress
     const progressEl = document.getElementById('cardProgress');
@@ -137,11 +136,10 @@ export class FlashcardsMode {
    */
   autoSpeak(cardData, deck, learningLang) {
     const isFlipped = card.classList.contains('flipped');
-    const isFrontLearning = this.frontIsQuestion
-      ? deck.learningLang === learningLang
-      : deck.nativeLang === learningLang;
+    // question = meaning (native language), answer = word being learned.
+    const isFrontLearning = !this.frontIsQuestion;
 
-    autoSpeakCard(cardData, this.frontIsQuestion, isFrontLearning, isFlipped, learningLang);
+    autoSpeakCard(cardData, this.frontIsQuestion, isFrontLearning, isFlipped, learningLang, deck.nativeLang);
   }
 
   /**
@@ -240,8 +238,6 @@ export class FlashcardsMode {
     this.sessionIndex = 0;
     this.currentCardIndex = 0;
 
-    const progressEl = document.getElementById('cardProgress');
-    if (progressEl) progressEl.textContent = '';
   }
 
   /**
@@ -250,9 +246,7 @@ export class FlashcardsMode {
   markCorrect() {
     if (!this.studyMode || !this.sessionCards.length) return;
 
-    const card = this.sessionCards[this.sessionIndex];
-    card.stats.correct++;
-
+    // Stats are recorded once by DataManager.updateCardStatsFromCard (main.js).
     this.sessionCards.splice(this.sessionIndex, 1);
     if (this.sessionIndex >= this.sessionCards.length) {
       this.sessionIndex = Math.max(0, this.sessionCards.length - 1);
@@ -265,9 +259,7 @@ export class FlashcardsMode {
   markIncorrect() {
     if (!this.studyMode || !this.sessionCards.length) return;
 
-    const card = this.sessionCards[this.sessionIndex];
-    card.stats.incorrect++;
-
+    // Stats are recorded once by DataManager.updateCardStatsFromCard (main.js).
     this.sessionCards.push(this.sessionCards.splice(this.sessionIndex, 1)[0]);
   }
 
@@ -300,11 +292,21 @@ export class FlashcardsMode {
   /**
    * Speak visible text
    */
-  speakVisible(card, langCode) {
+  speakVisible(card, langCode, nativeLang = 'en') {
     const isFlipped = document.getElementById('card').classList.contains('flipped');
     const visibleText = isFlipped ? this.getBackText(card) : this.getFrontText(card);
-    speakText(visibleText, langCode);
+    // question = meaning (native); the visible side is the question when front-is-question XOR flipped
+    const showingQuestion = this.frontIsQuestion !== isFlipped;
+    speakText(visibleText, showingQuestion ? nativeLang : langCode);
   }
 }
 
 export default new FlashcardsMode();
+
+// Notes and example sentences appear under the answer on the back of the card.
+function showNote(cardData) {
+  const el = document.getElementById('answerNote');
+  if (!el) return;
+  el.textContent = cardData?.note || '';
+  el.hidden = !cardData?.note;
+}

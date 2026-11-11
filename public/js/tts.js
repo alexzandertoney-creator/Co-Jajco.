@@ -21,10 +21,9 @@ export function getSpeakMode() {
 /**
  * Speak text in target language
  */
-export function speakText(text, langCode = 'en') {
+export function speakText(text, langCode = 'en', rate = 0.9) {
+  if (!window.speechSynthesis || !text) return;
   speechSynthesis.cancel();
-
-  if (!window.speechSynthesis) return;
 
   const utterance = new SpeechSynthesisUtterance(text);
   const lang = langMap[langCode] || 'en-US';
@@ -46,7 +45,7 @@ export function speakText(text, langCode = 'en') {
   }
 
   utterance.lang = lang;
-  utterance.rate = 0.9;
+  utterance.rate = rate;
 
   speechSynthesis.speak(utterance);
 }
@@ -55,34 +54,25 @@ export function speakText(text, langCode = 'en') {
  * Stop speaking
  */
 export function stopSpeaking() {
-  speechSynthesis.cancel();
+  window.speechSynthesis?.cancel();
 }
 
 /**
  * Auto-speak card based on settings
  */
-export function autoSpeakCard(cardData, frontIsQuestion, isFrontLearning, isFlipped, learningLang) {
+export function autoSpeakCard(cardData, frontIsQuestion, isFrontLearning, isFlipped, learningLang, nativeLang = 'en') {
   if (speakMode === SPEAK_MODES.OFF) return;
 
   const frontText = frontIsQuestion ? cardData.question : cardData.answer;
   const backText = frontIsQuestion ? cardData.answer : cardData.question;
-
   const visibleText = isFlipped ? backText : frontText;
+  // Is the side currently facing the user written in the language being learned?
+  const visibleIsLearning = isFlipped ? !isFrontLearning : isFrontLearning;
+  const voiceLang = visibleIsLearning ? learningLang : nativeLang;
 
-  if (speakMode === SPEAK_MODES.NATIVE) {
-    // Only speak the learning language side if visible
-    if ((isFlipped && !isFrontLearning) || (!isFlipped && isFrontLearning)) {
-      speakText(visibleText, learningLang);
-    }
-  } else if (speakMode === SPEAK_MODES.LEARNING) {
-    // Only speak learning language
-    if ((isFlipped && isFrontLearning) || (!isFlipped && !isFrontLearning)) {
-      speakText(visibleText, learningLang);
-    }
-  } else if (speakMode === SPEAK_MODES.BOTH) {
-    // Always speak visible text
-    speakText(visibleText, learningLang);
-  }
+  if (speakMode === SPEAK_MODES.LEARNING && !visibleIsLearning) return;
+  if (speakMode === SPEAK_MODES.NATIVE && visibleIsLearning) return;
+  speakText(visibleText, voiceLang);
 }
 
 /**
@@ -108,6 +98,7 @@ export function speakTextBySentences(text, langCode = 'en') {
     }
   }
 
+  if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   speakNext();
 }
@@ -116,7 +107,14 @@ export function speakTextBySentences(text, langCode = 'en') {
  * Initialize TTS - load voices
  */
 export function initTTS() {
-  speechSynthesis.onvoiceschanged = () => {
-    console.log('Voices loaded:', speechSynthesis.getVoices());
-  };
+  if (!window.speechSynthesis) return;
+  // Touching getVoices() makes Chrome start loading them before the first card is spoken.
+  speechSynthesis.getVoices();
+}
+
+// True if the browser has a voice for this language (voices can load late, so ask at use time).
+export function hasVoiceFor(langCode) {
+  if (!window.speechSynthesis) return false;
+  const base = (langMap[langCode] || langCode || '').split('-')[0].toLowerCase();
+  return speechSynthesis.getVoices().some(v => v.lang.toLowerCase().startsWith(base));
 }

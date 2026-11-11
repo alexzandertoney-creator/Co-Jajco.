@@ -75,6 +75,12 @@ export function handleReviewKeys(e, callbacks) {
  */
 export function setupKeyboardListener(onFlashcardsCallback, onReviewCallback) {
   document.addEventListener('keydown', (e) => {
+    // Never hijack typing, browser shortcuts (Ctrl+C used to mark a card correct),
+    // open dialogs, or keys pressed outside the Study section.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (document.body.dataset.group && document.body.dataset.group !== 'study') return;
     switch (keyboardContext) {
       case KEYBOARD_CONTEXTS.FLASHCARDS:
         onFlashcardsCallback?.(e);
