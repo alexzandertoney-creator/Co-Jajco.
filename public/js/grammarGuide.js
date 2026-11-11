@@ -2,7 +2,7 @@
 // A friendly reference for Polish: cases, gender, verbs, adjectives, numbers, prepositions
 // and pronouns, with real word forms from the grammar data, a word lookup and a case quiz.
 
-import { CASES, GENDERS, grammarFor, openGrammarSheet } from './grammar.js';
+import { CASES, GENDERS, grammarFor, openGrammarSheet, shardOf } from './grammar.js';
 import { shuffleArray } from './utils.js';
 
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -30,14 +30,28 @@ const section = (title, intro) => {
 };
 
 const examplesCache = new Map();
+// Looks the words up in parallel (each may need a different data file).
 async function nouns(words) {
-  const out = [];
-  for (const w of words) {
+  const found = await Promise.all(words.map((w) => {
     if (!examplesCache.has(w)) examplesCache.set(w, grammarFor(w).catch(() => null));
-    const g = await examplesCache.get(w);
-    if (g?.entry?.p === 'n' && g.entry.f?.[0]) out.push(g);
+    return examplesCache.get(w);
+  }));
+  return found.filter((g) => g?.entry?.p === 'n' && g.entry.f?.[0]);
+}
+
+// Deck words grouped by data file, taken from the fullest files first, so practice
+// needs only a few small downloads instead of one per word.
+function fewFiles(words, max = 60, files = 5) {
+  const byShard = new Map();
+  for (const w of new Set(words.map((x) => String(x).toLowerCase()))) {
+    if (!/\p{L}{3,}/u.test(w)) continue;
+    const s = shardOf(w);
+    byShard.set(s, [...(byShard.get(s) || []), w]);
   }
-  return out;
+  const unique = [...byShard.values()].flat();
+  if (unique.length <= max) return unique; // small deck: use every word
+  const fullest = [...byShard.values()].sort((a, b) => b.length - a.length).slice(0, files * 2);
+  return shuffleArray(fullest).slice(0, files).flat().slice(0, max);
 }
 
 // ---------- Topics ----------
@@ -176,10 +190,9 @@ async function verbsTopic() {
 
   const s2 = section('Present tense: four patterns', 'Learn ja and ty for each verb and you can build the rest. Real forms:');
   const verbs = [];
-  for (const [w, label] of [['czytać', '-am, -asz'], ['pisać', '-ę, -esz'], ['mówić', '-ę, -isz'], ['umieć', '-em, -esz']]) {
-    const g = await grammarFor(w).catch(() => null);
-    if (g?.entry?.pres) verbs.push([w, label, g.entry.pres]);
-  }
+  const patterns = [['czytać', '-am, -asz'], ['pisać', '-ę, -esz'], ['mówić', '-ę, -isz'], ['umieć', '-em, -esz']];
+  const found = await Promise.all(patterns.map(([w]) => grammarFor(w).catch(() => null)));
+  patterns.forEach(([w, label], k) => { if (found[k]?.entry?.pres) verbs.push([w, label, found[k].entry.pres]); });
   if (verbs.length) {
     const persons = ['ja', 'ty', 'on / ona', 'my', 'wy', 'oni / one'];
     s2.appendChild(simpleTable(['', ...verbs.map(([w, l]) => `${w} (${l})`)], persons.map((p, i) => [p, ...verbs.map(([w, , f]) => ending(w.slice(0, -2), first(f[i])))])));
@@ -369,8 +382,7 @@ async function practiceTopic(getDeckWords) {
   s.appendChild(panel);
   box.appendChild(s);
 
-  const own = (getDeckWords?.() || []).slice(0, 300);
-  let pool = await nouns([...new Set(own)].slice(0, 60));
+  let pool = await nouns(fewFiles(getDeckWords?.() || []));
   const fromDecks = pool.length >= 4;
   if (!fromDecks) pool = await nouns(DEFAULT_NOUNS);
   const source = el('p', 'meta', fromDecks ? 'Using nouns from your decks.' : 'Using everyday nouns.');
