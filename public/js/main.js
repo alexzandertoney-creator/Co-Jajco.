@@ -1,7 +1,8 @@
 // ============ MAIN APPLICATION INITIALIZATION ============
 
+import { renderGrammarGuide } from './grammarGuide.js';
 import * as DataManager from './data.js';
-import { isDue } from './utils.js';
+import { isDue, shuffleArray } from './utils.js';
 import { STARTER_STORIES, wordsIn } from './starterStories.js';
 import { langName, learnableFor } from './constants.js';
 import * as UI from './ui.js';
@@ -1058,6 +1059,16 @@ function switchMode(mode) {
     case MODES.STORY_ANALYZER:
       setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
       // Story analyzer initialized separately
+      break;
+
+    case MODES.GRAMMAR:
+      setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
+      renderGrammarGuide({
+        learningLang: DataManager.currentUser?.learningLang,
+        // Both sides of every card: the guide keeps only the ones that are Polish nouns.
+        getDeckWords: () => shuffleArray(DataManager.filteredDecks.flatMap((d) => d.cards.flatMap((c) => [c.answer, c.question])))
+          .map((w) => String(w || '').split(/[\s/,;]+/)[0]).filter(Boolean),
+      });
       break;
   }
 }

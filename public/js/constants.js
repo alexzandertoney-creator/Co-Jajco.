@@ -37,7 +37,8 @@ export const MODES = {
   MATCH: 'match',
   DECK_EDITOR: 'deckEditor',
   STORY_ANALYZER: 'storyAnalyzer',
-  PUBLIC_LIBRARY: 'publicLibrary'
+  PUBLIC_LIBRARY: 'publicLibrary',
+  GRAMMAR: 'grammar'
 };
 
 // Keyboard contexts

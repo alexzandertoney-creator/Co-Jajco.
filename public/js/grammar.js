@@ -314,6 +314,10 @@ function casesView(highlight) {
     d.appendChild(el('p', 'gram-ex', c.ex));
     box.appendChild(d);
   });
+  const more = el('a', 'gram-guide-link', 'Open the full grammar guide →');
+  more.href = 'index.html#grammar';
+  more.addEventListener('click', () => sheet?.close());
+  box.appendChild(more);
   return box;
 }
 
