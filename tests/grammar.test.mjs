@@ -43,4 +43,8 @@ assert.equal(await grammarFor('xyzzy'), null);
 g = await grammarFor('źdźbło trawy');
 assert.ok(!g || g.lemma !== 'trawa', 'never the second word');
 
+// Decks stored the other way round: the English side has no data, the Polish side does
+assert.equal(await grammarFor('Europe'), null);
+assert.equal((await grammarFor('Europa')).entry.g, 'f');
+
 console.log('grammar ok');

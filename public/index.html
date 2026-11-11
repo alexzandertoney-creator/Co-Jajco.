@@ -25,6 +25,7 @@
       <a href="smartReview.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span><span id="dueBadge" class="nav-badge" hidden></span></a>
       <button data-mode="deckEditor" data-group="deckEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Decks</span></button>
       <button data-mode="storyAnalyzer" data-group="storyAnalyzer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Stories</span></button>
+      <button data-mode="grammar" data-group="grammar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2"/><path d="M8 8h6M8 12h4"/><path d="M15 15l2 2 3-4"/></svg><span>Grammar</span></button>
       <button data-mode="publicLibrary" data-group="publicLibrary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>Library</span></button>
     </nav>
 
@@ -119,6 +120,7 @@
       <h2>Your field notebooks</h2>
       <div class="actions">
         <a class="text-link" href="recommended.html">Starter decks</a>
+        <button class="ghost small" type="button" data-go="grammar">Grammar</button>
         <button class="ghost small" type="button" data-go="publicLibrary">Library</button>
       </div>
     </div>
@@ -474,6 +476,8 @@
   </section>
 
   <!-- STORIES -->
+  <section id="grammarContainer" class="mode-container wide grammar" style="display: none;"></section>
+
   <section id="storyAnalyzerContainer" class="mode-container wide">
 
     <div id="storyInputMode" class="story-mode">

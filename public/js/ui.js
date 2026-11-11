@@ -104,6 +104,7 @@ export function renderMode(mode) {
     mode === MODES.DECK_EDITOR ? 'deckEditorContainer' :
     mode === MODES.STORY_ANALYZER ? 'storyAnalyzerContainer' :
     mode === MODES.PUBLIC_LIBRARY ? 'publicLibraryContainer' :
+    mode === MODES.GRAMMAR ? 'grammarContainer' :
     null;
 
   if (containerId) {
