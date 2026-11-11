@@ -1,5 +1,6 @@
 const express = require('express');
 const libraryController = require('../controllers/library.controller.js');
+const storiesController = require('../controllers/stories.controller.js');
 const authMiddleware = require('../middleware/auth.middleware.js');
 
 const router = express.Router();
@@ -15,5 +16,12 @@ router.get('/decks', authMiddleware, libraryController.getUserDecks);
 router.post('/decks', authMiddleware, libraryController.createUserDeck);
 router.put('/decks/:deckId', authMiddleware, libraryController.updateUserDeck);
 router.delete('/decks/:deckId', authMiddleware, libraryController.deleteUserDeck);
+
+// User story archive endpoints (private, "Past stories")
+router.get('/stories', authMiddleware, storiesController.listStories);
+router.post('/stories', authMiddleware, storiesController.saveStory);
+router.post('/stories/import', authMiddleware, storiesController.importStories);
+router.delete('/stories', authMiddleware, storiesController.clearStories);
+router.delete('/stories/:storyId', authMiddleware, storiesController.deleteStory);
 
 module.exports = router;

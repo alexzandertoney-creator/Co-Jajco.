@@ -431,104 +431,136 @@ function setupStoryAnalyzerListeners() {
   const storyInput = document.getElementById('storyInput');
   let currentStoryData = null;
 
-  const getStoryArchiveKey = () => {
-    const user = DataManager.currentUser;
-    if (!user) return 'storyArchive:guest';
-    return `storyArchive:${user.id}:${user.learningLang}:${user.nativeLang}`;
+  // ---- Past stories: saved to the account, so they follow you to any device ----
+  const authJson = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+  const langQuery = () => {
+    const u = DataManager.currentUser;
+    return `learningLang=${encodeURIComponent(u?.learningLang || '')}&nativeLang=${encodeURIComponent(u?.nativeLang || '')}`;
   };
+  let storyArchive = [];
 
-  const loadStoryArchive = () => {
+  const loadStoryArchive = async () => {
     try {
-      return JSON.parse(localStorage.getItem(getStoryArchiveKey()) || '[]');
-    } catch {
-      return [];
+      const res = await fetch(`/api/library/stories?${langQuery()}`, { headers: authJson() });
+      if (!res.ok) throw new Error(res.status);
+      storyArchive = await res.json();
+    } catch (e) {
+      console.error('Failed to load stories:', e);
+      toast('Couldn’t load your past stories. Refresh to try again.', 'error');
     }
-  };
-
-  const saveStoryArchive = (archive) => {
-    localStorage.setItem(getStoryArchiveKey(), JSON.stringify(archive));
+    return storyArchive;
   };
 
   const renderStoryArchive = () => {
-    const archive = loadStoryArchive();
     if (!storyArchiveList || !storyArchiveEmpty) return;
+    storyArchiveList.replaceChildren();
+    storyArchiveEmpty.style.display = storyArchive.length ? 'none' : 'block';
 
-    storyArchiveList.innerHTML = '';
-
-    if (archive.length === 0) {
-      storyArchiveEmpty.style.display = 'block';
-      return;
-    }
-
-    storyArchiveEmpty.style.display = 'none';
-
-    archive.slice().reverse().forEach((entry) => {
+    storyArchive.forEach((entry) => {
       const item = document.createElement('div');
       item.className = 'archive-item';
 
       const details = document.createElement('div');
       details.className = 'archive-details';
-
       const title = document.createElement('div');
       title.textContent = entry.title;
       title.className = 'archive-title';
-
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${entry.tokens.length} tokens`;
-
-      details.appendChild(title);
-      details.appendChild(meta);
+      meta.textContent = `${new Date(entry.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${entry.tokens.length} words`;
+      details.append(title, meta);
 
       const actions = document.createElement('div');
       actions.className = 'archive-actions';
-
       const openBtn = document.createElement('button');
       openBtn.textContent = 'Open';
-      openBtn.addEventListener('click', () => {
-        openArchivedStory(entry);
-      });
-
+      openBtn.addEventListener('click', () => openArchivedStory(entry));
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.className = 'ghost';
-      deleteBtn.addEventListener('click', () => {
-        const filtered = loadStoryArchive().filter(item => item.id !== entry.id);
-        saveStoryArchive(filtered);
-        renderStoryArchive();
+      deleteBtn.setAttribute('aria-label', `Delete ${entry.title}`);
+      deleteBtn.addEventListener('click', async () => {
+        if (!await confirmDialog('Delete this story?', `“${entry.title}” will be removed from your past stories.`, { confirmLabel: 'Delete', danger: true })) return;
+        try {
+          const res = await fetch(`/api/library/stories/${entry.id}`, { method: 'DELETE', headers: authJson() });
+          if (!res.ok) throw new Error(res.status);
+          storyArchive = storyArchive.filter((s) => s.id !== entry.id);
+          renderStoryArchive();
+        } catch {
+          toast('Couldn’t delete the story. Try again.', 'error');
+        }
       });
-
-      actions.appendChild(openBtn);
-      actions.appendChild(deleteBtn);
-      item.appendChild(details);
-      item.appendChild(actions);
+      actions.append(openBtn, deleteBtn);
+      item.append(details, actions);
       storyArchiveList.appendChild(item);
     });
   };
 
-  const archiveStory = (data) => {
-    const archive = loadStoryArchive();
-    const storyPreview = data.story ? data.story.slice(0, 70).replace(/\s+/g, ' ') : 'Saved story';
-    const titlePart = data.title || storyPreview;
-    const entry = {
-      id: `story-${Date.now()}`,
-      title: `${titlePart} ${new Date().toLocaleString()}${data.story && data.story.length > 70 && !data.title ? '…' : ''}`,
-      story: data.story,
-      tokens: data.tokens,
-      createdAt: new Date().toISOString()
-    };
-
-    archive.push(entry);
-    while (archive.length > 20) {
-      archive.shift();
+  const archiveStory = async (data) => {
+    const u = DataManager.currentUser;
+    const preview = data.story ? data.story.slice(0, 60).replace(/\s+/g, ' ').trim() : 'Saved story';
+    try {
+      const res = await fetch('/api/library/stories', {
+        method: 'POST',
+        headers: authJson(),
+        body: JSON.stringify({
+          clientId: `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          title: data.title || (data.story?.length > 60 ? `${preview}…` : preview),
+          story: data.story,
+          tokens: data.tokens,
+          learningLang: u?.learningLang,
+          nativeLang: u?.nativeLang,
+        }),
+      });
+      const saved = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(saved?.error || res.status);
+      if (saved?.id) storyArchive = [saved, ...storyArchive];
+      renderStoryArchive();
+    } catch (e) {
+      console.error('Failed to save story:', e);
+      toast('The story opened, but it couldn’t be saved to your past stories.', 'error');
     }
-    saveStoryArchive(archive);
-    renderStoryArchive();
+  };
+
+  // Stories used to be saved only in this browser. Upload them to the account once,
+  // then remove the local copy. Safe to repeat: the server ignores ones it already has.
+  const migrateLocalStories = async () => {
+    const u = DataManager.currentUser;
+    if (!u) return;
+    const prefix = `storyArchive:${u.id}:`;
+    const keys = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(prefix) || k === 'storyArchive:guest') keys.push(k);
+      }
+    } catch { return; }
+    if (!keys.length) return;
+
+    const stories = keys.flatMap((k) => {
+      const [, , learningLang = u.learningLang, nativeLang = u.nativeLang] = k.split(':');
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(k) || '[]'); } catch { /* corrupt entry: skip */ }
+      return (Array.isArray(list) ? list : []).map((e) => ({
+        clientId: e.id, title: e.title, story: e.story, tokens: e.tokens, createdAt: e.createdAt, learningLang, nativeLang,
+      }));
+    });
+    if (!stories.length) { keys.forEach((k) => localStorage.removeItem(k)); return; }
+
+    try {
+      const res = await fetch('/api/library/stories/import', { method: 'POST', headers: authJson(), body: JSON.stringify({ stories }) });
+      if (!res.ok) throw new Error(res.status);
+      const { imported } = await res.json();
+      keys.forEach((k) => localStorage.removeItem(k)); // only after the server confirmed
+      if (imported) toast(`Moved ${imported} past ${imported === 1 ? 'story' : 'stories'} to your account. They’ll show on every device now.`, 'success');
+    } catch (e) {
+      console.error('Story migration failed; will retry next time:', e); // local copy kept
+    }
   };
 
   const openArchivedStory = (entry) => {
     if (!entry || !entry.story || !Array.isArray(entry.tokens)) return;
-    const json = JSON.stringify({ story: entry.story, tokens: entry.tokens });
+    const json = JSON.stringify({ title: entry.title, story: entry.story, tokens: entry.tokens });
     storyInput.value = json;
     analyzeStoryData(json, false, false);
     showStoryReviewMode();
@@ -720,11 +752,18 @@ function setupStoryAnalyzerListeners() {
 
   clearStoryArchiveBtn?.addEventListener('click', async () => {
     if (!await confirmDialog('Clear past stories?', 'This removes every saved story for this language. It can’t be undone.', { confirmLabel: 'Clear all', danger: true })) return;
-    saveStoryArchive([]);
-    renderStoryArchive();
+    try {
+      const res = await fetch(`/api/library/stories?${langQuery()}`, { method: 'DELETE', headers: authJson() });
+      if (!res.ok) throw new Error(res.status);
+      storyArchive = [];
+      renderStoryArchive();
+    } catch {
+      toast('Couldn’t clear your stories. Try again.', 'error');
+    }
   });
 
-  renderStoryArchive();
+  // Upload any browser-only stories first, then show the account's list.
+  migrateLocalStories().then(loadStoryArchive).then(renderStoryArchive);
 
   createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
     if (!window.storyTokenizer) {

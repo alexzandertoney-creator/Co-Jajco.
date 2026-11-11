@@ -97,13 +97,23 @@
       dlg.appendChild(form);
       document.body.appendChild(dlg);
 
-      cancel.addEventListener('click', () => dlg.close(''));
-      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(''); });
-      dlg.addEventListener('close', () => {
-        const confirmed = dlg.returnValue === 'ok';
+      // Resolve straight from what the user did (confirm, cancel, Esc, backdrop click)
+      // rather than relying only on the dialog's 'close' event, which some browsers
+      // and embedded webviews deliver late or not at all.
+      let settled = false;
+      const finish = (confirmed) => {
+        if (settled) return;
+        settled = true;
+        const values = confirmed ? inputs.map((i) => i.value.trim()) : null;
+        if (dlg.open) dlg.close();
         dlg.remove();
-        resolve(confirmed ? inputs.map((i) => i.value.trim()) : null);
-      });
+        resolve(values);
+      };
+      form.addEventListener('submit', (e) => { e.preventDefault(); finish(true); }); // only fires once required fields are filled
+      cancel.addEventListener('click', () => finish(false));
+      dlg.addEventListener('cancel', (e) => { e.preventDefault(); finish(false); }); // Esc
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) finish(false); });
+      dlg.addEventListener('close', () => finish(dlg.returnValue === 'ok'));
 
       window.enhanceSelects?.(dlg);
       dlg.showModal();
