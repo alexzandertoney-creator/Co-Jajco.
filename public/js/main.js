@@ -2,11 +2,14 @@
 
 import * as DataManager from './data.js';
 import { isDue } from './utils.js';
+import { STARTER_STORIES, wordsIn } from './starterStories.js';
+import { langName, learnableFor } from './constants.js';
 import * as UI from './ui.js';
 import { setKeyboardContext, setupKeyboardListener, handleFlashcardsKeys } from './keyboard.js';
 import { initTTS, setSpeakMode, speakText } from './tts.js';
 import { MODES, KEYBOARD_CONTEXTS, SPEAK_MODES } from './constants.js';
-import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
+import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, looksLikeStoryJson } from '../storyPromptService.js';
+import { openReader, closeReader, clearSavedWords } from './reader.js';
 import * as StoryAnalyzer from '../storyAnalyzer.js';
 import * as PublicLibrary from './publicLibrary.js';
 
@@ -14,9 +17,9 @@ import flashcardsMode from './modes/flashcards.js';
 import learnMode from './modes/learn.js';
 import testMode from './modes/test.js';
 import matchMode from './modes/match.js';
-import deckEditor from './deckEditor.js';
+import deckEditor, { filterCards } from './deckEditor.js';
 import { loadProfile, recordAnswer, onProfileChange } from './profile.js';
-import { renderHome, renderProfile, renderIdentity, setupProfileForm, rememberDeck } from './home.js';
+import { renderHome, renderProfile, renderIdentity, setupProfileForm, rememberDeck, downloadReminder } from './home.js';
 
 // Global state
 let currentMode = MODES.HOME;
@@ -51,8 +54,6 @@ async function initializeApp() {
     
     // Setup keyboard with button callbacks
     const flashcardCallbacks = {
-      correctBtn: UI.correctBtn,
-      incorrectBtn: UI.incorrectBtn,
       nextBtn: UI.nextBtn,
       prevBtn: UI.prevBtn,
       toggleFlip: () => {
@@ -102,9 +103,19 @@ async function initializeApp() {
       renderIdentity(DataManager.currentUser);
       if (currentMode === MODES.HOME) renderHome(homeContext());
     });
-    setupProfileForm((changes) => {
+    setupProfileForm(async (changes) => {
       // A different native language changes which decks apply, so reload cleanly.
-      if (changes.nativeLang && changes.nativeLang !== DataManager.currentUser?.nativeLang) location.reload();
+      if (!changes.nativeLang || changes.nativeLang === DataManager.currentUser?.nativeLang) return;
+      const allowed = learnableFor(changes.nativeLang);
+      if (!allowed.includes(DataManager.currentUser.learningLang)) {
+        await fetch('/api/auth/me/language', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ learningLang: allowed[0] }),
+        }).catch(() => {});
+        localStorage.setItem('learningLang', allowed[0]);
+      }
+      location.reload();
     });
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => switchMode(b.dataset.go)));
 
@@ -122,6 +133,57 @@ function setupEventListeners() {
   UI.logoutBtn?.addEventListener('click', () => {
     localStorage.removeItem('token');
     window.location.href = 'login.html';
+  });
+
+  // Appearance: system / light / dark (stored per device).
+  const themeSelect = document.getElementById('themeSelect');
+  if (themeSelect) {
+    try { themeSelect.value = localStorage.getItem('theme') || 'system'; } catch { /* storage blocked */ }
+    themeSelect.addEventListener('change', () => {
+      const v = themeSelect.value;
+      try { v === 'system' ? localStorage.removeItem('theme') : localStorage.setItem('theme', v); } catch { /* storage blocked */ }
+      if (v === 'system') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = v;
+    });
+  }
+
+  document.getElementById('reminderBtn')?.addEventListener('click', () => {
+    downloadReminder(document.getElementById('reminderTime')?.value, DataManager.currentUser);
+    toast('Open the downloaded file to add the reminder to your calendar.', 'success');
+  });
+
+  document.getElementById('changePasswordBtn')?.addEventListener('click', async () => {
+    const res = await formDialog('Change password', [
+      { label: 'Current password', type: 'password', autocomplete: 'current-password' },
+      { label: 'New password (8+ characters)', type: 'password', autocomplete: 'new-password' },
+    ], { confirmLabel: 'Change password' });
+    if (!res) return;
+    const [currentPassword, newPassword] = res;
+    const r = await fetch('/api/auth/me/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }).catch(() => null);
+    const data = await r?.json().catch(() => ({}));
+    if (!r?.ok) return toast(data?.error || 'Couldn’t change the password. Try again.', 'error');
+    toast('Password changed.', 'success');
+  });
+
+  document.getElementById('deleteAccountBtn')?.addEventListener('click', async () => {
+    const res = await formDialog('Delete your account?', [
+      { label: 'Type your password to confirm', type: 'password', autocomplete: 'current-password' },
+    ], { confirmLabel: 'Delete my account', danger: true, message: 'Your decks, stories and progress will be deleted for good. This can’t be undone.' });
+    if (!res) return;
+    const r = await fetch('/api/auth/me', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ password: res[0] }),
+    }).catch(() => null);
+    const data = await r?.json().catch(() => ({}));
+    if (!r?.ok) return toast(data?.error || 'Couldn’t delete the account. Try again.', 'error');
+    localStorage.clear();
+    flash('Your account has been deleted. Sorry to see you go!', 'info');
+    window.location.replace('login.html');
   });
 
   // Language switching lives in languageSync.js (shared by every page).
@@ -170,7 +232,6 @@ function setupEventListeners() {
   setupDeckEditorListeners();
 
   // Study mode
-  setupStudyModeListeners();
 
   // Story analyzer
   setupStoryAnalyzerListeners();
@@ -247,29 +308,6 @@ function setupFlashcardsListeners() {
     flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
   });
 
-  UI.correctBtn?.addEventListener('click', async () => {
-    const deck = DataManager.getDeck(currentDeckIndex);
-    if (flashcardsMode.studyMode) {
-      const card = flashcardsMode.getCurrentCard(deck);
-      if (!card) return;
-      flashcardsMode.markCorrect();
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-      // Master Vocab holds the real cards from other decks; let data.js find the owner.
-      DataManager.updateCardStatsFromCard(card, true, deck.id === 'master-vocab' ? undefined : deck.id);
-    }
-  });
-
-  UI.incorrectBtn?.addEventListener('click', async () => {
-    const deck = DataManager.getDeck(currentDeckIndex);
-    if (flashcardsMode.studyMode) {
-      const card = flashcardsMode.getCurrentCard(deck);
-      if (!card) return;
-      flashcardsMode.markIncorrect();
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-      // Master Vocab holds the real cards from other decks; let data.js find the owner.
-      DataManager.updateCardStatsFromCard(card, false, deck.id === 'master-vocab' ? undefined : deck.id);
-    }
-  });
 }
 
 /**
@@ -314,8 +352,108 @@ function setupDeckEditorListeners() {
     UI.editorQuestion.value = '';
     UI.editorAnswer.value = '';
     if (noteInput) noteInput.value = '';
+    if (suggestHint) suggestHint.hidden = true;
     UI.editorAnswer.focus();
     refreshDecks(deck.id);
+  });
+
+  // Typing a word fills in its meaning from the shared dictionary (only if the meaning is empty).
+  const suggestHint = document.getElementById('editorSuggestHint');
+  let suggestTimer = null;
+  UI.editorAnswer?.addEventListener('input', () => {
+    clearTimeout(suggestTimer);
+    if (suggestHint) suggestHint.hidden = true;
+    const word = UI.editorAnswer.value.trim();
+    if (!word || UI.editorQuestion.value.trim()) return;
+    suggestTimer = setTimeout(async () => {
+      const deck = DataManager.getDeck(currentDeckIndex);
+      const hit = await DataManager.suggestTranslation(word, deck?.learningLang, deck?.nativeLang).catch(() => null);
+      // Only fill if the user hasn't typed a meaning or changed the word meanwhile.
+      if (hit && UI.editorAnswer.value.trim() === word && !UI.editorQuestion.value.trim()) {
+        UI.editorQuestion.value = hit.translation;
+        if (suggestHint) suggestHint.hidden = false;
+      }
+    }, 400);
+  });
+  UI.editorQuestion?.addEventListener('input', () => { if (suggestHint) suggestHint.hidden = true; });
+
+  document.getElementById('renameDeckBtn')?.addEventListener('click', async () => {
+    const deck = DataManager.getDeck(currentDeckIndex);
+    if (!deck || deck.id === 'master-vocab') return;
+    const name = await promptDialog('Rename deck', { label: 'Deck name', value: deck.name, confirmLabel: 'Rename' });
+    if (!name || name === deck.name) return;
+    if (!await DataManager.renameDeck(deck.id, name)) return toast('Couldn’t rename the deck. Try again.', 'error');
+    refreshDecks(deck.id);
+    toast(`Renamed to “${name}”.`, 'success');
+  });
+
+  document.getElementById('cardSearch')?.addEventListener('input', filterCards);
+
+  // Dictionary search: either language, results can go straight into this deck.
+  const dictInput = document.getElementById('dictSearch');
+  const dictResults = document.getElementById('dictResults');
+  let dictTimer = null, dictSeq = 0;
+  const renderDict = (rows, q) => {
+    dictResults.replaceChildren();
+    if (!q) return;
+    if (!rows.length) {
+      const li = document.createElement('li');
+      li.className = 'empty-hint';
+      li.textContent = `Nothing found for “${q}”. Add it as a card above and it joins the dictionary.`;
+      dictResults.appendChild(li);
+      return;
+    }
+    const deck = DataManager.getDeck(currentDeckIndex);
+    const canAdd = deck && deck.id !== 'master-vocab';
+    const inDeck = new Set((deck?.cards || []).map((c) => c.answer.toLowerCase()));
+    rows.forEach((r) => {
+      const li = document.createElement('li');
+      const main = document.createElement('div');
+      main.className = 'wl-main';
+      const w = document.createElement('strong');
+      w.textContent = r.word;
+      const t = document.createElement('span');
+      t.textContent = r.translation;
+      main.append(w, t);
+      if (r.lemma) {
+        const l = document.createElement('span');
+        l.className = 'wl-lemma';
+        l.textContent = `form of ${r.lemma}`;
+        main.appendChild(l);
+      }
+      const speak = document.createElement('button');
+      speak.type = 'button';
+      speak.className = 'wl-icon';
+      speak.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+      speak.setAttribute('aria-label', `Listen to ${r.word}`);
+      speak.addEventListener('click', () => speakText(r.word, DataManager.currentUser.learningLang, 0.8));
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'ghost small';
+      const already = inDeck.has(r.word.toLowerCase());
+      add.textContent = already ? 'In deck ✓' : '+ Add';
+      add.disabled = !canAdd || already;
+      if (!canAdd) add.title = 'Pick one of your own decks first';
+      add.addEventListener('click', async () => {
+        add.disabled = true;
+        const ok = await deckEditor.addCard(currentDeckIndex, r.translation, r.word, DataManager.filteredDecks, r.lemma ? `Form of ${r.lemma}` : '');
+        if (!ok) { add.disabled = false; return toast('Couldn’t add the word. Try again.', 'error'); }
+        add.textContent = 'In deck ✓';
+        refreshDecks(deck.id);
+      });
+      li.append(main, speak, add);
+      dictResults.appendChild(li);
+    });
+  };
+  dictInput?.addEventListener('input', () => {
+    clearTimeout(dictTimer);
+    const q = dictInput.value.trim();
+    if (q.length < 2) return renderDict([], '');
+    dictTimer = setTimeout(async () => {
+      const seq = ++dictSeq;
+      const rows = await DataManager.searchDictionary(q).catch(() => []);
+      if (seq === dictSeq) renderDict(rows, q); // ignore slower, older answers
+    }, 250);
   });
 
   document.getElementById('swapAllSidesBtn')?.addEventListener('click', async () => {
@@ -393,25 +531,6 @@ function setupDeckEditorListeners() {
 }
 
 /**
- * Setup study mode listeners
- */
-function setupStudyModeListeners() {
-  UI.studyModeToggle?.addEventListener('change', () => {
-    if (UI.studyModeToggle.checked) {
-      const deck = DataManager.getDeck(currentDeckIndex);
-      flashcardsMode.startStudyMode(deck, true);
-      setKeyboardContext(KEYBOARD_CONTEXTS.REVIEW);
-    } else {
-      flashcardsMode.endStudyMode();
-      setKeyboardContext(KEYBOARD_CONTEXTS.FLASHCARDS);
-    }
-
-    UI.updateStudyControls(UI.studyModeToggle.checked);
-    flashcardsMode.showCard(DataManager.getDeck(currentDeckIndex), DataManager.currentUser.learningLang);
-  });
-}
-
-/**
  * Setup story analyzer listeners
  */
 function setupStoryAnalyzerListeners() {
@@ -420,121 +539,156 @@ function setupStoryAnalyzerListeners() {
   const storyInputMode = document.getElementById('storyInputMode');
   const storyReviewMode = document.getElementById('storyReviewMode');
   const publishStoryBtn = document.getElementById('publishStoryBtn');
-  const generatePromptBtn = document.getElementById('generatePromptBtn');
   const generateFromTextBtn = document.getElementById('generateFromTextBtn');
-  const copyPromptBtn = document.getElementById('copyPromptBtn');
   const clearStoryArchiveBtn = document.getElementById('clearStoryArchive');
   const storyArchiveList = document.getElementById('storyArchiveList');
   const storyArchiveEmpty = document.getElementById('storyArchiveEmpty');
-  const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
   const promptOutput = document.getElementById('promptOutput');
   const storyInput = document.getElementById('storyInput');
   let currentStoryData = null;
 
-  const getStoryArchiveKey = () => {
-    const user = DataManager.currentUser;
-    if (!user) return 'storyArchive:guest';
-    return `storyArchive:${user.id}:${user.learningLang}:${user.nativeLang}`;
+  // ---- Past stories: saved to the account, so they follow you to any device ----
+  const authJson = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+  const langQuery = () => {
+    const u = DataManager.currentUser;
+    return `learningLang=${encodeURIComponent(u?.learningLang || '')}&nativeLang=${encodeURIComponent(u?.nativeLang || '')}`;
   };
+  let storyArchive = [];
+  let currentSavedStoryId = null;
 
-  const loadStoryArchive = () => {
+  const loadStoryArchive = async () => {
     try {
-      return JSON.parse(localStorage.getItem(getStoryArchiveKey()) || '[]');
-    } catch {
-      return [];
+      const res = await fetch(`/api/library/stories?${langQuery()}`, { headers: authJson() });
+      if (!res.ok) throw new Error(res.status);
+      storyArchive = await res.json();
+    } catch (e) {
+      console.error('Failed to load stories:', e);
+      toast('Couldn’t load your past stories. Refresh to try again.', 'error');
     }
-  };
-
-  const saveStoryArchive = (archive) => {
-    localStorage.setItem(getStoryArchiveKey(), JSON.stringify(archive));
+    return storyArchive;
   };
 
   const renderStoryArchive = () => {
-    const archive = loadStoryArchive();
     if (!storyArchiveList || !storyArchiveEmpty) return;
+    storyArchiveList.replaceChildren();
+    storyArchiveEmpty.style.display = storyArchive.length ? 'none' : 'block';
 
-    storyArchiveList.innerHTML = '';
-
-    if (archive.length === 0) {
-      storyArchiveEmpty.style.display = 'block';
-      return;
-    }
-
-    storyArchiveEmpty.style.display = 'none';
-
-    archive.slice().reverse().forEach((entry) => {
+    storyArchive.forEach((entry) => {
       const item = document.createElement('div');
       item.className = 'archive-item';
 
       const details = document.createElement('div');
       details.className = 'archive-details';
-
       const title = document.createElement('div');
       title.textContent = entry.title;
       title.className = 'archive-title';
-
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${entry.tokens.length} tokens`;
-
-      details.appendChild(title);
-      details.appendChild(meta);
+      meta.textContent = `${new Date(entry.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${entry.tokens.length} words`;
+      details.append(title, meta);
 
       const actions = document.createElement('div');
       actions.className = 'archive-actions';
-
       const openBtn = document.createElement('button');
       openBtn.textContent = 'Open';
-      openBtn.addEventListener('click', () => {
-        openArchivedStory(entry);
-      });
-
+      openBtn.addEventListener('click', () => openArchivedStory(entry));
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.className = 'ghost';
-      deleteBtn.addEventListener('click', () => {
-        const filtered = loadStoryArchive().filter(item => item.id !== entry.id);
-        saveStoryArchive(filtered);
-        renderStoryArchive();
+      deleteBtn.setAttribute('aria-label', `Delete ${entry.title}`);
+      deleteBtn.addEventListener('click', async () => {
+        if (!await confirmDialog('Delete this story?', `“${entry.title}” will be removed from your past stories.`, { confirmLabel: 'Delete', danger: true })) return;
+        try {
+          const res = await fetch(`/api/library/stories/${entry.id}`, { method: 'DELETE', headers: authJson() });
+          if (!res.ok) throw new Error(res.status);
+          storyArchive = storyArchive.filter((s) => s.id !== entry.id);
+          renderStoryArchive();
+        } catch {
+          toast('Couldn’t delete the story. Try again.', 'error');
+        }
       });
-
-      actions.appendChild(openBtn);
-      actions.appendChild(deleteBtn);
-      item.appendChild(details);
-      item.appendChild(actions);
+      actions.append(openBtn, deleteBtn);
+      item.append(details, actions);
       storyArchiveList.appendChild(item);
     });
   };
 
-  const archiveStory = (data) => {
-    const archive = loadStoryArchive();
-    const storyPreview = data.story ? data.story.slice(0, 70).replace(/\s+/g, ' ') : 'Saved story';
-    const titlePart = data.title || storyPreview;
-    const entry = {
-      id: `story-${Date.now()}`,
-      title: `${titlePart} ${new Date().toLocaleString()}${data.story && data.story.length > 70 && !data.title ? '…' : ''}`,
-      story: data.story,
-      tokens: data.tokens,
-      createdAt: new Date().toISOString()
-    };
-
-    archive.push(entry);
-    while (archive.length > 20) {
-      archive.shift();
+  const archiveStory = async (data) => {
+    const u = DataManager.currentUser;
+    const preview = data.story ? data.story.slice(0, 60).replace(/\s+/g, ' ').trim() : 'Saved story';
+    try {
+      const res = await fetch('/api/library/stories', {
+        method: 'POST',
+        headers: authJson(),
+        body: JSON.stringify({
+          clientId: `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          title: data.title || (data.story?.length > 60 ? `${preview}…` : preview),
+          story: data.story,
+          tokens: data.tokens,
+          learningLang: u?.learningLang,
+          nativeLang: u?.nativeLang,
+        }),
+      });
+      const saved = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(saved?.error || res.status);
+      if (saved?.id) {
+        storyArchive = [saved, ...storyArchive];
+        currentSavedStoryId = saved.id;
+      }
+      renderStoryArchive();
+    } catch (e) {
+      console.error('Failed to save story:', e);
+      toast('The story opened, but it couldn’t be saved to your past stories.', 'error');
     }
-    saveStoryArchive(archive);
-    renderStoryArchive();
+  };
+
+  // Stories used to be saved only in this browser. Upload them to the account once,
+  // then remove the local copy. Safe to repeat: the server ignores ones it already has.
+  const migrateLocalStories = async () => {
+    const u = DataManager.currentUser;
+    if (!u) return;
+    const prefix = `storyArchive:${u.id}:`;
+    const keys = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(prefix) || k === 'storyArchive:guest') keys.push(k);
+      }
+    } catch { return; }
+    if (!keys.length) return;
+
+    const stories = keys.flatMap((k) => {
+      const [, , learningLang = u.learningLang, nativeLang = u.nativeLang] = k.split(':');
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(k) || '[]'); } catch { /* corrupt entry: skip */ }
+      return (Array.isArray(list) ? list : []).map((e) => ({
+        clientId: e.id, title: e.title, story: e.story, tokens: e.tokens, createdAt: e.createdAt, learningLang, nativeLang,
+      }));
+    });
+    if (!stories.length) { keys.forEach((k) => localStorage.removeItem(k)); return; }
+
+    try {
+      const res = await fetch('/api/library/stories/import', { method: 'POST', headers: authJson(), body: JSON.stringify({ stories }) });
+      if (!res.ok) throw new Error(res.status);
+      const { imported } = await res.json();
+      keys.forEach((k) => localStorage.removeItem(k)); // only after the server confirmed
+      if (imported) toast(`Moved ${imported} past ${imported === 1 ? 'story' : 'stories'} to your account. They’ll show on every device now.`, 'success');
+    } catch (e) {
+      console.error('Story migration failed; will retry next time:', e); // local copy kept
+    }
   };
 
   const openArchivedStory = (entry) => {
     if (!entry || !entry.story || !Array.isArray(entry.tokens)) return;
-    const json = JSON.stringify({ story: entry.story, tokens: entry.tokens });
+    currentSavedStoryId = entry.id;
+    const json = JSON.stringify({ title: entry.title, story: entry.story, tokens: entry.tokens });
     storyInput.value = json;
     analyzeStoryData(json, false, false);
     showStoryReviewMode();
   };
 
   const showStoryInputMode = () => {
+    closeReader();
     if (storyInputMode && storyReviewMode) {
       storyInputMode.style.display = 'block';
       storyReviewMode.style.display = 'none';
@@ -552,75 +706,10 @@ function setupStoryAnalyzerListeners() {
     const data = parseStoryResponse(rawText);
 
     if (!data) {
-      toast('Invalid JSON. Make sure you pasted the AI response correctly.', 'error');
+      toast('That AI reply is incomplete. Copy the whole reply again, or ask the chat to “send the full JSON”.', 'error');
       return null;
     }
 
-    window.storyTokenizer = new StoryTokenizer(data.story, data.tokens);
-    window.storyTTSPlayer = new StoryTTSPlayer(
-      window.storyTokenizer,
-      DataManager.currentUser.learningLang
-    );
-
-    let ttsContainer = document.getElementById('storyTTSContainer');
-    if (!ttsContainer) {
-      ttsContainer = document.createElement('div');
-      ttsContainer.id = 'storyTTSContainer';
-      document.querySelector('.story-review-container')?.appendChild(ttsContainer);
-    } else {
-      ttsContainer.innerHTML = ''; // Clear existing controls
-    }
-
-    let selectedContainer = document.getElementById('selectedTokens');
-    if (selectedContainer) {
-      selectedContainer.innerHTML = '';
-    }
-
-    const updateRightPanelFromSelection = () => {
-      const listEl = document.getElementById('unknownWordsList');
-      if (!listEl || !window.storyTokenizer) return;
-
-      const selected = window.storyTokenizer.getSelectedTokens();
-      listEl.innerHTML = '';
-
-      if (selected.length === 0) {
-        listEl.innerHTML = '<li class="empty-hint">Tap words in the story to collect them here.</li>';
-        return;
-      }
-
-      selected.forEach(tok => {
-        const li = document.createElement('li');
-
-        const title = document.createElement('div');
-        title.textContent = tok.text;
-        title.className = 'word';
-
-        const trans = document.createElement('div');
-        trans.textContent = tok.translation || '';
-        trans.className = 'meta';
-
-        li.appendChild(title);
-        li.appendChild(trans);
-        li.addEventListener('click', () => {
-          window.storyTokenizer.toggleToken(tok.text);
-          renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-          updateRightPanelFromSelection();
-        });
-
-        listEl.appendChild(li);
-      });
-    };
-
-    const { updatePlayBtn, updateCurrentTokenDisplay } = renderStoryTTSControls('#storyTTSContainer', window.storyTTSPlayer);
-    attachStoryTTSKeyboardShortcuts(window.storyTTSPlayer, updatePlayBtn);
-
-    renderInteractiveStory('#storyDisplay', window.storyTokenizer, (token, translation) => {
-      renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-      updateRightPanelFromSelection();
-    });
-
-    renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-    updateRightPanelFromSelection();
     if (shouldArchive) {
       archiveStory(data);
     }
@@ -637,63 +726,184 @@ function setupStoryAnalyzerListeners() {
     }
 
     showStoryReviewMode();
+    openReader(currentStoryData, {
+      learningLang: DataManager.currentUser.learningLang,
+      nativeLang: DataManager.currentUser.nativeLang,
+      callbacks: { onTranslationAdded, onAddToDeck: addWordsToDeck },
+    });
     return data;
   };
 
-  const analyzeCurrentStory = () => {
-    const sourceText = storyInput.value.trim();
-    if (!sourceText) {
-      return toast('Please paste the tokenized story JSON into the text area first.', 'error');
+  // A translation typed into the word popup: keep it in this story and share it.
+  const onTranslationAdded = (word, translation) => {
+    if (!currentStoryData) return;
+    const key = word.toLowerCase();
+    const has = currentStoryData.tokens.some((t) => t.text.toLowerCase() === key);
+    currentStoryData.tokens = has
+      ? currentStoryData.tokens.map((t) => (t.text.toLowerCase() === key ? { ...t, translation } : t))
+      : [...currentStoryData.tokens, { text: word, translation }];
+    DataManager.contributeTranslations([{ word, translation }]);
+    if (currentSavedStoryId) {
+      fetch(`/api/library/stories/${currentSavedStoryId}`, { method: 'PUT', headers: authJson(), body: JSON.stringify({ tokens: currentStoryData.tokens }) })
+        .then((r) => r.ok && r.json()).then((row) => { if (row) storyArchive = storyArchive.map((x) => (x.id === row.id ? row : x)); })
+        .catch(() => {});
     }
-
-    analyzeStoryData(sourceText);
+    toast('Translation added. Thanks for helping other learners!', 'success');
   };
 
-  generatePromptBtn?.addEventListener('click', () => {
-    const level = document.getElementById('promptLevel').value;
-    const length = document.getElementById('promptLength').value;
-    const topic = document.getElementById('promptTopic').value || 'daily life';
+  // "Add N words to a deck": an existing deck or a new one, saved in one request.
+  const addWordsToDeck = async (words) => {
+    if (!words.length) return;
+    const own = DataManager.filteredDecks.filter((d) => d.id !== 'master-vocab');
+    const NEW = '+ New deck';
+    const res = await formDialog(`Add ${words.length} word${words.length === 1 ? '' : 's'} to a deck`, [
+      { label: 'Deck', options: [NEW, ...own.map((d) => d.name)], value: NEW },
+      { label: 'Name for a new deck', value: currentStoryData?.title || 'Story words', required: false },
+    ], { confirmLabel: 'Add words' });
+    if (!res) return;
+    const [choice, newName] = res;
+    // Cards: question = meaning, answer = the word (same as every deck)
+    const cards = words.map((w) => ({
+      question: w.translation, answer: w.text,
+      ...(w.lemma ? { note: `Form of ${w.lemma}` } : {}), // "ogromną" -> base form "ogromny" on the card
+      stats: { correct: 0, incorrect: 0 },
+    }));
+    DataManager.contributeTranslations(words.map((w) => ({ word: w.text, translation: w.translation })));
 
-    const prompt = generateStoryPrompt({
-      level,
-      length,
-      topic,
-      learningLang: DataManager.currentUser.learningLang,
-      nativeLang: DataManager.currentUser.nativeLang
-    });
+    let ok = false, target = null;
+    if (choice === NEW) {
+      target = await DataManager.createDeck(newName || currentStoryData?.title || 'Story words', DataManager.currentUser.learningLang, DataManager.currentUser.nativeLang, cards);
+      ok = !!target;
+    } else {
+      target = own.find((d) => d.name === choice);
+      const existing = new Set(target.cards.map((c) => c.answer.toLowerCase()));
+      const fresh = cards.filter((c) => !existing.has(c.answer.toLowerCase()));
+      ok = fresh.length ? await DataManager.setDeckCards(target.id, [...target.cards, ...fresh]) : true;
+    }
+    if (!ok) return toast('Couldn’t save the words. Try again.', 'error');
+    refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
+    clearSavedWords();
+    toast(`Added to “${target.name}”. Find them under Study.`, 'success');
+  };
 
-    promptOutput.value = prompt;
-  });
+  // Plain text -> story: every word gets its translation from the shared dictionary.
+  const storyFromText = async (text, { title, glossary = {} } = {}) => {
+    const words = [...new Set(wordsIn(text))];
+    let found = {};
+    try {
+      found = await DataManager.lookupWords(words);
+    } catch (e) {
+      console.error(e);
+      toast('The dictionary is unavailable right now. You can still read and add translations.', 'error');
+    }
+    const key = (w) => w.toLowerCase().normalize('NFC');
+    const tokens = words.map((w) => ({ text: w, translation: glossary[key(w)] || found[key(w)]?.translation || '' }));
+    return { title: title || text.trim().split(/\s+/).slice(0, 6).join(' '), story: text.trim(), tokens };
+  };
 
-  generateFromTextBtn?.addEventListener('click', () => {
-    const storyInput = document.getElementById('storyInput');
-    const rawText = storyInput.value.trim();
-
-    if (!rawText) {
-      toast('Paste a story in the Story Input field first!', 'error');
+  // Opens whatever is in the box: an AI reply (JSON, with or without extra chat text) or plain text.
+  const analyzeCurrentStory = async () => {
+    const sourceText = storyInput.value.trim();
+    if (!sourceText) return toast('Paste some text or an AI story first.', 'error');
+    if (looksLikeStoryJson(sourceText)) {
+      currentSavedStoryId = null;
+      analyzeStoryData(sourceText);
       return;
     }
+    analyzeStoryBtn.disabled = true;
+    analyzeStoryBtn.textContent = 'Opening…';
+    try {
+      currentSavedStoryId = null;
+      analyzeStoryData(JSON.stringify(await storyFromText(sourceText)));
+    } finally {
+      analyzeStoryBtn.disabled = false;
+      analyzeStoryBtn.textContent = 'Open story';
+    }
+  };
 
+  // Pasting opens the story straight away; no extra click needed.
+  storyInput?.addEventListener('paste', () => setTimeout(() => {
+    if (storyInput.value.trim().length > 20) analyzeCurrentStory();
+  }, 0));
+
+  // Public stories open straight in the reader (and are kept in Past stories).
+  window.addEventListener('openStory', (e) => {
+    const st = e.detail;
+    if (!st?.story || !Array.isArray(st.tokens)) return toast('This story can’t be opened.', 'error');
+    switchMode(MODES.STORY_ANALYZER);
+    currentSavedStoryId = null;
+    analyzeStoryData(JSON.stringify({ title: st.title, story: st.story, tokens: st.tokens }));
+  });
+
+  // ---- Starter stories for the current language ----
+  const renderStarterStories = () => {
+    const panel = document.getElementById('starterStoriesPanel');
+    const list = document.getElementById('starterStoryList');
+    const lang = DataManager.currentUser?.learningLang;
+    const stories = STARTER_STORIES.filter((st) => st.lang === lang && (st.native || 'en') === DataManager.currentUser?.nativeLang);
+    if (!panel || !list) return;
+    panel.hidden = !stories.length;
+    list.replaceChildren();
+    stories.forEach((st) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'starter-story';
+      const level = document.createElement('span');
+      level.className = 'starter-level';
+      level.textContent = st.level;
+      const title = document.createElement('strong');
+      title.textContent = st.title;
+      const preview = document.createElement('span');
+      preview.className = 'meta';
+      preview.textContent = `${st.story.replace(/\s+/g, ' ').slice(0, 70)}…`;
+      b.append(level, title, preview);
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          currentSavedStoryId = null;
+          // Starter stories aren't added to Past stories; they're always here.
+          analyzeStoryData(JSON.stringify(await storyFromText(st.story, { title: st.title, glossary: st.glossary })), false);
+        } finally {
+          b.disabled = false;
+        }
+      });
+      list.appendChild(b);
+    });
+    const label = document.getElementById('storyInputLabel');
+    if (label) label.textContent = `Read any ${langName(lang)} text`;
+  };
+  renderStarterStories();
+
+  const buildStoryPrompt = () => generateStoryPrompt({
+    level: document.getElementById('promptLevel').value,
+    length: document.getElementById('promptLength').value,
+    topic: document.getElementById('promptTopic').value || 'daily life',
+    learningLang: DataManager.currentUser.learningLang,
+    nativeLang: DataManager.currentUser.nativeLang,
+  });
+
+  // The window is opened first (inside the click) so pop-up blockers allow it.
+  const copyAndOpen = async (prompt, url) => {
+    const win = window.open(url, '_blank', 'noopener');
+    promptOutput.value = prompt;
+    await copyToClipboard(prompt, 'Prompt copied. Paste it into the chat, then paste the reply back here.');
+    if (!win) toast('Your browser blocked the new tab. The prompt is copied; open the chat yourself.', 'info');
+  };
+  document.getElementById('copyToChatGPT')?.addEventListener('click', () => copyAndOpen(buildStoryPrompt(), 'https://chatgpt.com/'));
+  document.getElementById('copyToClaude')?.addEventListener('click', () => copyAndOpen(buildStoryPrompt(), 'https://claude.ai/new'));
+
+  generateFromTextBtn?.addEventListener('click', () => {
+    const rawText = storyInput.value.trim();
+    if (!rawText) return toast('Paste your text in the box above first.', 'error');
     const level = document.getElementById('promptLevel').value;
-    // Use the Level select to decide whether to simplify.
-    // If user selected the "Original" option, keep the original text (no simplification).
-    const simplify = level !== 'Original';
-
     const prompt = generateTextTokenizationPrompt({
       rawText,
       level,
       learningLang: DataManager.currentUser.learningLang,
       nativeLang: DataManager.currentUser.nativeLang,
-      simplify
+      simplify: level !== 'Original',
     });
-
-    promptOutput.value = prompt;
-    toast('Prompt generated! Copy it and paste the AI response back to analyze.', 'info');
-  });
-
-  copyPromptBtn?.addEventListener('click', () => {
-    if (!promptOutput.value) return toast('Generate a prompt first.', 'error');
-    copyToClipboard(promptOutput.value, 'Prompt copied. Paste it into your AI chat.');
+    copyAndOpen(prompt, 'https://chatgpt.com/');
   });
 
   analyzeStoryBtn?.addEventListener('click', analyzeCurrentStory);
@@ -720,53 +930,19 @@ function setupStoryAnalyzerListeners() {
 
   clearStoryArchiveBtn?.addEventListener('click', async () => {
     if (!await confirmDialog('Clear past stories?', 'This removes every saved story for this language. It can’t be undone.', { confirmLabel: 'Clear all', danger: true })) return;
-    saveStoryArchive([]);
-    renderStoryArchive();
-  });
-
-  renderStoryArchive();
-
-  createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
-    if (!window.storyTokenizer) {
-      toast('No story loaded. Analyze a story first!', 'error');
-      return;
-    }
-
-    const selectedTokens = window.storyTokenizer.getSelectedTokens();
-    if (selectedTokens.length === 0) {
-      toast('No tokens selected! Click tokens in the story to add them.', 'error');
-      return;
-    }
-
-    const deckName = await promptDialog('Create flashcard deck', {
-      label: 'Deck name',
-      value: currentStoryData?.title || `Story – ${new Date().toLocaleDateString()}`,
-      confirmLabel: 'Create deck',
-      message: `${selectedTokens.length} word${selectedTokens.length === 1 ? '' : 's'} will become cards.`,
-    });
-    if (!deckName) return;
-
-    // Same convention as every deck: question = meaning, answer = word being learned.
-    const cards = selectedTokens.map(token => ({
-      question: token.translation || '',
-      answer: token.text,
-      stats: { correct: 0, incorrect: 0 }
-    }));
-
-    const newDeck = await DataManager.createDeck(
-      deckName,
-      DataManager.currentUser.learningLang,
-      DataManager.currentUser.nativeLang,
-      cards
-    );
-
-    if (newDeck) {
-      refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
-      toast(`Deck “${deckName}” created with ${selectedTokens.length} cards.`, 'success');
-    } else {
-      toast('Failed to create deck', 'error');
+    try {
+      const res = await fetch(`/api/library/stories?${langQuery()}`, { method: 'DELETE', headers: authJson() });
+      if (!res.ok) throw new Error(res.status);
+      storyArchive = [];
+      renderStoryArchive();
+    } catch {
+      toast('Couldn’t clear your stories. Try again.', 'error');
     }
   });
+
+  // Upload any browser-only stories first, then show the account's list.
+  migrateLocalStories().then(loadStoryArchive).then(renderStoryArchive);
+
 }
 
 /**
@@ -787,12 +963,10 @@ function refreshDecks(selectDeckId, { rerender = true } = {}) {
   if (deck && deck.id !== 'master-vocab') rememberDeck(deck.id);
   flashcardsMode.currentCardIndex = 0;
   flashcardsMode.activeFlashcards = [];
-  if (deck?.cards?.length) {
-    if (UI.flashShuffleToggle?.checked) flashcardsMode.setShuffleMode(deck, true);
-    if (flashcardsMode.studyMode) flashcardsMode.startStudyMode(deck, true);
-  } else if (flashcardsMode.studyMode) {
-    flashcardsMode.sessionCards = [];
-  }
+  if (deck?.cards?.length && UI.flashShuffleToggle?.checked) flashcardsMode.setShuffleMode(deck, true);
+  // "Review this deck" opens the graded review for just this deck.
+  const reviewLink = document.getElementById('reviewThisDeck');
+  if (reviewLink) reviewLink.href = deck && deck.id !== 'master-vocab' ? `smartReview.html?deck=${encodeURIComponent(deck.id)}` : 'smartReview.html';
   UI.renderDeckState(deck, DataManager.filteredDecks.length);
   updateDueBadge();
   if (rerender) switchMode(currentMode);
@@ -832,7 +1006,8 @@ async function copyToClipboard(text, successMessage) {
 }
 
 function switchMode(mode) {
-  // Stop timers from the mode we're leaving so they can't fire into the new one.
+  // Stop timers (and story audio) from the mode we're leaving so they can't fire into the new one.
+  if (mode !== MODES.STORY_ANALYZER) closeReader();
   matchMode.reset();
   testMode.reset();
   learnMode.reset();

@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const authRoutes = require('../src/routes/auth.routes.js');
 const libraryRoutes = require('../src/routes/library.routes.js');
+const dictionaryRoutes = require('../src/routes/dictionary.routes.js');
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json({ limit: '50mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/library', libraryRoutes);
+app.use('/api/dictionary', dictionaryRoutes);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));

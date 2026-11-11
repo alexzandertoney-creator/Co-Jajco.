@@ -108,6 +108,7 @@ function renderDeckList(decks) {
       <div class="lib-actions">
         <button type="button" data-action="import-deck" data-deck-id="${esc(deck.id)}">Add to my decks</button>
         <button type="button" class="ghost" data-action="copy-deck-json" data-deck-id="${esc(deck.id)}">Copy JSON</button>
+        <button type="button" class="link-btn" data-action="report">Report</button>
       </div>
     `;
 
@@ -115,6 +116,7 @@ function renderDeckList(decks) {
     const copyBtn = card.querySelector('[data-action="copy-deck-json"]');
 
     importBtn?.addEventListener('click', async () => await importPublicDeck(deck));
+    card.querySelector('[data-action="report"]')?.addEventListener('click', () => reportItem('deck', deck, card));
     copyBtn?.addEventListener('click', () => copyText(JSON.stringify(deck, null, 2)));
 
     UI.publicLibraryDeckList.appendChild(card);
@@ -140,12 +142,18 @@ function renderStoryList(stories) {
           <p class="meta">By ${esc(story.author || 'Anonymous')} · ${esc(new Date(story.created_at).toLocaleDateString())}</p>
         </div>
       <div class="lib-actions">
+        <button type="button" data-action="read-story">Read</button>
         <button type="button" class="ghost" data-action="copy-story-json" data-story-id="${esc(story.id)}">Copy JSON</button>
+        <button type="button" class="link-btn" data-action="report">Report</button>
       </div>
     `;
 
     const copyBtn = card.querySelector('[data-action="copy-story-json"]');
     copyBtn?.addEventListener('click', () => copyText(JSON.stringify(story, null, 2)));
+    // Opens in the reader (and saves a copy to the reader's Past stories).
+    card.querySelector('[data-action="report"]')?.addEventListener('click', () => reportItem('story', story, card));
+    card.querySelector('[data-action="read-story"]')?.addEventListener('click', () =>
+      window.dispatchEvent(new CustomEvent('openStory', { detail: story })));
     UI.publicLibraryStoryList.appendChild(card);
   });
 }
@@ -158,26 +166,19 @@ async function importPublicDeck(deck) {
     const learningLang = deck.learningLang || DataManager.currentUser?.learningLang || 'en';
     const nativeLang = deck.nativeLang || DataManager.currentUser?.nativeLang || 'en';
 
-    // Create deck on server
-    const newDeck = await DataManager.createDeck(localDeckName, learningLang, nativeLang);
-    
+    const cards = deck.cards
+      .filter((c) => c && (c.question || c.answer))
+      .map((c) => ({ question: c.question || '', answer: c.answer || '', ...(c.note ? { note: c.note } : {}), stats: { correct: 0, incorrect: 0 } }));
+    // One request for the whole deck (used to be one PUT per card).
+    const newDeck = await DataManager.createDeck(localDeckName, learningLang, nativeLang, cards);
     if (!newDeck) {
-      toast('Failed to create deck on server', 'error');
+      toast('Couldn’t add the deck. Try again.', 'error');
       return;
-    }
-
-    // Add cards to the deck
-    for (const card of deck.cards) {
-      await DataManager.addCardToDeck(
-        newDeck.id,
-        card.question || '',
-        card.answer || ''
-      );
     }
 
     DataManager.updateFilteredDecks();
     UI.updateDeckSelect(DataManager.filteredDecks);
-    toast(`Imported public deck: ${localDeckName}`, 'success');
+    toast(`Added “${localDeckName}” to your decks.`, 'success');
   } catch (error) {
     console.error('Failed to import public deck:', error);
     toast('Failed to import deck', 'error');
@@ -270,5 +271,25 @@ export async function publishCurrentStory(data, level, title) {
   } catch (error) {
     console.error('Publish story failed:', error);
     toast(`Unable to publish story: ${error.message}`, 'error');
+  }
+}
+
+// Report something inappropriate or wrong; enough reports hide it for everyone.
+async function reportItem(kind, item, cardEl) {
+  const res = await formDialog(`Report this ${kind}?`, [
+    { label: 'What’s wrong? (optional)', required: false, placeholder: 'e.g. offensive, spam, lots of wrong translations' },
+  ], { confirmLabel: 'Send report', message: `“${item.name || item.title}” will be hidden once several people report it.` });
+  if (!res) return;
+  try {
+    const r = await fetch('/api/library/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ kind, id: item.id, reason: res[0] }),
+    });
+    if (!r.ok) throw new Error(r.status);
+    cardEl.remove(); // hide it for the reporter right away
+    toast('Thanks. The report was sent and it’s hidden for you.', 'success');
+  } catch {
+    toast('Couldn’t send the report. Try again.', 'error');
   }
 }

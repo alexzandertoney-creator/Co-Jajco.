@@ -22,10 +22,8 @@ export function getKeyboardContext() {
  * Handle flashcards keyboard shortcuts
  */
 export function handleFlashcardsKeys(e, callbacks) {
-  const { correctBtn, incorrectBtn, nextBtn, prevBtn, toggleFlip } = callbacks;
+  const { nextBtn, prevBtn, toggleFlip } = callbacks;
 
-  if (e.key === 'c') correctBtn?.click();
-  if (e.key === 'i') incorrectBtn?.click();
 
   switch (e.key) {
     case 'ArrowRight':
@@ -47,10 +45,8 @@ export function handleFlashcardsKeys(e, callbacks) {
  * Handle review keyboard shortcuts
  */
 export function handleReviewKeys(e, callbacks) {
-  const { correctBtn, incorrectBtn, nextBtn, prevBtn, toggleFlip } = callbacks;
+  const { nextBtn, prevBtn, toggleFlip } = callbacks;
 
-  if (e.key === 'c') correctBtn?.click();
-  if (e.key === 'i') incorrectBtn?.click();
 
   switch (e.key) {
     case 'ArrowRight':

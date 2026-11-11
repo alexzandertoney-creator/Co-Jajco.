@@ -63,3 +63,8 @@ export const MATCH_GAME = {
 };
 
 export const langName = (code) => LANGUAGES.find(l => l.code === code)?.name || code || 'Unknown';
+
+// Language pairs the app has content for (starter decks, dictionary, stories):
+// native language -> languages you can learn.
+export const LANGUAGE_PAIRS = { en: ['pl', 'es', 'fr', 'it'], pl: ['en'] };
+export const learnableFor = (native) => LANGUAGE_PAIRS[native] || LANGUAGE_PAIRS.en;

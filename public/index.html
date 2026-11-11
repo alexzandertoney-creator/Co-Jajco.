@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
+  <script>/* Apply the saved appearance before first paint (no flash). */try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -153,7 +154,10 @@
             <div><dt>Mastered</dt><dd id="pMastered">0</dd></div>
             <div><dt>Accuracy</dt><dd id="pAccuracy">–</dd></div>
           </dl>
-          <button id="logoutBtn" class="ghost logout" type="button">Log out</button>
+          <div class="ranger-actions">
+            <button id="logoutBtn" class="ghost logout" type="button">Log out</button>
+            <button id="changePasswordBtn" class="ghost small" type="button">Change password</button>
+          </div>
         </div>
       </aside>
 
@@ -189,15 +193,26 @@
                 <select id="profileNative">
                   <option value="en">English</option>
                   <option value="pl">Polish</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="it">Italian</option>
                 </select>
               </label>
             </div>
             <div class="actions"><button type="submit" id="profileSave">Save changes</button></div>
           </form>
+          <div class="settings-reminder">
+            <label class="inline-select"><span>Appearance</span>
+              <select id="themeSelect">
+                <option value="system">Match my device</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+          </div>
+          <div class="settings-reminder">
+            <label class="inline-select" for="reminderTime"><span>Daily reminder at</span></label>
+            <input id="reminderTime" type="time" value="19:00" />
+            <button id="reminderBtn" class="ghost small" type="button">Add to my calendar</button>
+            <p class="meta">Adds a repeating event with an alert to Google, Apple or Outlook calendar.</p>
+          </div>
           <div class="settings-lang">
             <label class="lang-picker">
               <span>Learning</span>
@@ -214,6 +229,14 @@
             <p class="meta">Switching language shows that language’s decks.</p>
           </div>
         </details>
+
+        <div class="danger-zone">
+          <div>
+            <h3>Delete account</h3>
+            <p class="meta">Removes your account, decks, stories and progress for good. Anything you shared to the Library stays, without your name.</p>
+          </div>
+          <button id="deleteAccountBtn" class="ghost danger" type="button">Delete account</button>
+        </div>
       </div>
     </div>
   </section>
@@ -232,10 +255,11 @@
       </div>
     </div>
 
-    <div id="studyControls">
-      <button id="incorrectBtn" class="danger">Not yet</button>
-      <button id="correctBtn" class="success">I knew it</button>
-    </div>
+
+    <a id="reviewThisDeck" class="review-deck-link" href="smartReview.html">
+      <span>Ready to test yourself? <strong>Review this deck</strong></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+    </a>
 
     <div class="card-nav">
       <button id="prev" class="ghost round" aria-label="Previous card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -247,10 +271,6 @@
     </div>
 
     <div class="options-row">
-      <label class="study-toggle">
-        <input type="checkbox" id="studyModeToggle">
-        Study mode
-      </label>
       <label class="study-toggle">
         <input type="checkbox" id="flashShuffleToggle">
         Shuffle
@@ -340,6 +360,7 @@
     <div class="section-head">
       <h2>Edit cards</h2>
       <div class="actions">
+        <button id="renameDeckBtn" class="ghost" type="button">Rename</button>
         <button id="swapAllSidesBtn" class="ghost" type="button">Swap sides of all cards</button>
         <button id="publishDeckBtn" class="ghost">Publish to library</button>
       </div>
@@ -355,6 +376,7 @@
         <input id="editorNote" placeholder="Note or example sentence (optional)" aria-label="Note or example sentence" autocomplete="off" />
         <button type="submit" id="editorAdd">Add card</button>
       </div>
+      <p id="editorSuggestHint" class="meta suggest-hint" hidden>Meaning filled in from the shared dictionary. Change it if you like.</p>
     </form>
 
     <details class="panel">
@@ -400,8 +422,22 @@
       </div>
     </details>
 
+    <section class="panel dictionary-panel">
+      <div class="section-head">
+        <div>
+          <h3>Dictionary</h3>
+          <p class="meta">Search any word in either language and add it to this deck.</p>
+        </div>
+      </div>
+      <input id="dictSearch" type="search" placeholder="Search, e.g. “dom” or “house”" autocomplete="off" aria-label="Search the dictionary" />
+      <ul id="dictResults" class="dict-results" aria-live="polite"></ul>
+    </section>
+
     <div class="panel">
-      <h3>Cards in this deck</h3>
+      <div class="section-head cards-head">
+        <h3>Cards in this deck <span id="cardCount" class="meta"></span></h3>
+        <input id="cardSearch" type="search" placeholder="Find a card" autocomplete="off" aria-label="Find a card in this deck" />
+      </div>
       <ul id="cardList"></ul>
     </div>
 
@@ -420,7 +456,6 @@
       <h2>Library</h2>
       <div class="actions">
         <button id="refreshPublicLibraryBtn" class="ghost">Refresh</button>
-        <button id="publishStoryBtn" class="ghost">Publish current story</button>
         <button id="recommendedDecksBtn">Starter decks</button>
       </div>
     </div>
@@ -442,16 +477,28 @@
     <div id="storyInputMode" class="story-mode">
       <div class="section-head">
         <h2>Stories</h2>
-        <button id="analyzeStory">Open story</button>
       </div>
 
-      <div class="panel">
-        <label for="storyInput" class="field-label">Paste your story JSON</label>
-        <textarea id="storyInput" class="tall" placeholder="Paste the JSON your AI chat returned"></textarea>
+      <section class="panel starter-stories" id="starterStoriesPanel" hidden>
+        <div class="section-head">
+          <div>
+            <h3>Starter stories</h3>
+            <p class="meta">Short stories to read right away. Tap any word to see what it means.</p>
+          </div>
+        </div>
+        <div id="starterStoryList" class="starter-story-list"></div>
+      </section>
+
+      <div class="panel paste-panel">
+        <label for="storyInput" class="field-label" id="storyInputLabel">Read your own text</label>
+        <p class="meta" id="storyInputHelp">Paste any text, or a story from your AI chat. It opens straight away with translations.</p>
+        <textarea id="storyInput" class="tall" placeholder="e.g. a news paragraph, a song, a message from a friend, or your AI chat’s reply"></textarea>
+        <div class="actions"><button id="analyzeStory">Open story</button></div>
       </div>
 
       <details class="panel prompt-generator">
-        <summary>Generate a story prompt</summary>
+        <summary>Get a new story from an AI chat</summary>
+        <p class="meta">Pick a level and topic, then copy the prompt into ChatGPT or Claude. Paste the reply in the box above and it opens by itself.</p>
         <div class="field-grid">
           <label>Level
             <select id="promptLevel">
@@ -477,18 +524,21 @@
           </label>
         </div>
         <div class="actions">
-          <button id="generatePromptBtn">Generate prompt</button>
-          <button id="generateFromTextBtn" class="ghost">From my own text</button>
-          <button id="copyPromptBtn" class="ghost">Copy</button>
+          <button id="copyToChatGPT" type="button">Copy prompt &amp; open ChatGPT</button>
+          <button id="copyToClaude" type="button" class="ghost">Copy &amp; open Claude</button>
+          <button id="generateFromTextBtn" type="button" class="ghost">Have AI translate my pasted text</button>
         </div>
-        <textarea id="promptOutput" placeholder="Your prompt appears here"></textarea>
+        <details class="prompt-preview">
+          <summary>See the prompt</summary>
+          <textarea id="promptOutput" readonly placeholder="The prompt appears here once copied"></textarea>
+        </details>
       </details>
 
       <div class="panel story-archive-panel">
         <div class="section-head">
           <div>
             <h3>Past stories</h3>
-            <p class="meta">Reopen any story you've read before.</p>
+            <p class="meta">Saved to your account, so they’re here on every device.</p>
           </div>
           <button id="clearStoryArchive" class="ghost danger" type="button">Clear all</button>
         </div>
@@ -498,33 +548,50 @@
     </div>
 
     <div id="storyReviewMode" class="story-mode" style="display: none;">
-      <div class="section-head">
-        <button id="backToInput" class="ghost">Back to stories</button>
+      <div class="reader-head">
+        <button id="backToInput" class="ghost small" type="button">← Stories</button>
+        <div class="reader-titles">
+          <h2 id="readerTitle">Story</h2>
+          <p class="meta" id="readerMeta"></p>
+        </div>
+        <button id="publishStoryBtn" class="ghost small reader-publish" type="button">Share to Library</button>
       </div>
 
       <div class="story-review-layout">
-        <div class="story-review-container">
-          <div class="story-toolbar">
-            <button id="playPauseStory">Play</button>
-            <span id="storyPlaybackStatus" class="meta">Word <strong id="currentTokenIndex">0</strong></span>
-            <span class="meta">Use ← → to move between words</span>
-          </div>
+        <article class="reader-card">
+          <p class="reader-tip meta">Tap any word to see what it means.</p>
           <div class="story-display" id="storyDisplay"></div>
-        </div>
 
-        <aside class="story-flashcards-panel">
-          <h3>Your words</h3>
-          <ul id="unknownWordsList"></ul>
-          <div id="selectedTokens"></div>
-          <button id="createDeckFromStoryTokens">Create flashcard deck</button>
+          <div class="audio-bar" id="audioBar">
+            <button id="audioPrev" class="audio-icon" type="button" aria-label="Previous sentence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button id="audioPlay" class="audio-play" type="button" aria-label="Play"></button>
+            <button id="audioNext" class="audio-icon" type="button" aria-label="Next sentence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <div class="audio-progress">
+              <span id="audioStatus" class="audio-status"></span>
+              <span class="audio-track"><span id="audioFill"></span></span>
+            </div>
+            <button id="audioSpeed" class="audio-speed" type="button" aria-label="Reading speed">0.8×</button>
+            <button id="wordsOpen" class="audio-words" type="button" aria-expanded="false" aria-controls="wordsPanel">Words <span id="wordsCountMobile">0</span></button>
+          </div>
+        </article>
+
+        <aside class="words-panel" id="wordsPanel" aria-label="Words to learn">
+          <div class="words-head">
+            <h3>Words to learn <span id="wordsCount" class="words-count">0</span></h3>
+            <button id="wordsClose" class="wl-icon words-close" type="button" aria-label="Close">✕</button>
+          </div>
+          <p class="meta" id="wordsHint">Tap a word in the story, then “Save word”. They’ll collect here so you can turn them into flashcards.</p>
+          <p class="meta untranslated-note" id="untranslatedNote" hidden></p>
+          <ul id="wordsList" class="words-list"></ul>
+          <button id="createDeckFromStoryTokens" type="button" disabled>Add words to a deck</button>
         </aside>
       </div>
+
+      <div id="wordPopup" class="word-popup" role="dialog" aria-label="Word" hidden></div>
     </div>
 
-    <div id="translationTooltip" class="translation-tooltip" style="display: none;">
-      <span id="tooltipWord"></span>
-      <div class="tooltip-arrow"></div>
-    </div>
+    <p class="data-credit meta">Word translations include data from <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> (CC BY-SA 4.0, via <a href="https://kaikki.org/" target="_blank" rel="noopener">kaikki.org</a>) and <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener">FrequencyWords</a>, plus translations shared by learners.</p>
+
   </section>
 
   </main>

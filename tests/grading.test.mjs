@@ -1,4 +1,4 @@
-// Self-check for the answer grader: node scripts/checkGrading.mjs
+// Self-check for the answer grader: node tests/grading.test.mjs
 import assert from 'node:assert/strict';
 import { gradeAnswer as g, esc } from '../public/js/utils.js';
 

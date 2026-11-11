@@ -126,7 +126,7 @@ export function getDecksForCurrentLanguage() {
   if (masterWords.length) {
     filtered.unshift({
       id: 'master-vocab',
-      name: '📚 Master Vocab',
+      name: 'All my words',
       learningLang,
       nativeLang,
       cards: masterWords
@@ -458,13 +458,17 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     scheduleCard(card, correct);
     window.dispatchEvent(new Event('reviewScheduleChanged'));
 
-    const res = await fetch(`/api/library/decks/${deckId}`, {
-      method: 'PUT',
+    // Save just this card's progress, so other cards' answers (other tab/device) aren't overwritten.
+    const res = await fetch(`/api/library/decks/${deckId}/card`, {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ cards: deck.cards })
+      body: JSON.stringify({
+        match: { question: card.question, answer: card.answer },
+        set: { stats: card.stats, srs: card.srs, lastReviewed: card.lastReviewed },
+      })
     });
 
     if (!res.ok) {
@@ -472,9 +476,6 @@ export async function updateCardStats(deckId, cardIndex, correct) {
       revert();
       return false;
     }
-
-    const updated = await res.json();
-    syncCards(deck, updated.cards);
     return true;
   } catch (error) {
     console.error('Failed to update card stats:', error);
@@ -565,4 +566,67 @@ export async function setDeckCards(deckId, cards) {
     console.error('Failed to save deck cards:', error);
     return false;
   }
+}
+
+// ---------- Shared dictionary ----------
+
+const dictHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+/** { [normalizedWord]: { translation, lemma } } for the current language pair. */
+export async function lookupWords(words, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const res = await fetch('/api/dictionary/lookup', {
+    method: 'POST', headers: dictHeaders(), body: JSON.stringify({ learningLang, nativeLang, words }),
+  });
+  if (!res.ok) throw new Error(`Dictionary lookup failed: ${res.status}`);
+  return res.json();
+}
+
+/** Best translation for one word, or null (editor suggestions). */
+export async function suggestTranslation(word, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const q = new URLSearchParams({ learningLang, nativeLang, word });
+  const res = await fetch(`/api/dictionary/suggest?${q}`, { headers: dictHeaders() });
+  const data = res.ok ? await res.json() : {};
+  return data.translation ? data : null;
+}
+
+/**
+ * Adds word pairs to the shared dictionary, anonymously (word + translation only).
+ * Fire-and-forget: a failure here must never block saving the user's own cards.
+ */
+export function contributeTranslations(pairs, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const clean = (pairs || []).filter((p) => p?.word && p?.translation);
+  if (!clean.length || !learningLang || !nativeLang) return;
+  fetch('/api/dictionary/contribute', {
+    method: 'POST', headers: dictHeaders(), body: JSON.stringify({ learningLang, nativeLang, pairs: clean }),
+  }).catch(() => { /* best effort */ });
+}
+
+/** Practice that counts toward today's goal without changing the review schedule (e.g. Match). */
+export function recordPractice() {
+  window.dispatchEvent(new Event('reviewScheduleChanged'));
+}
+
+/** Rename one of the user's decks. */
+export async function renameDeck(deckId, name) {
+  const deck = decks.find((d) => d.id == deckId);
+  if (!deck || deckId === 'master-vocab') return false;
+  try {
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) return false;
+    deck.name = name;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Two-way dictionary search: [{ word, translation, lemma }] */
+export async function searchDictionary(q, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const params = new URLSearchParams({ learningLang, nativeLang, q });
+  const res = await fetch(`/api/dictionary/search?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  return res.ok ? res.json() : [];
 }

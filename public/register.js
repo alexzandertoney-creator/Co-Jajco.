@@ -1,4 +1,14 @@
 const form = document.getElementById("registerForm");
+
+// Only offer language pairs the app has content for (same as LANGUAGE_PAIRS in js/constants.js).
+const PAIRS = { en: [["pl", "Polish"], ["es", "Spanish"], ["fr", "French"], ["it", "Italian"]], pl: [["en", "English"]] };
+const nativeSel = document.getElementById("nativeLang");
+const learningSel = document.getElementById("learningLang");
+function fillLearning() {
+  learningSel.replaceChildren(...(PAIRS[nativeSel.value] || PAIRS.en).map(([v, label]) => new Option(label, v)));
+}
+nativeSel.addEventListener("change", fillLearning);
+fillLearning();
 const btn = document.getElementById("registerBtn");
 
 form.addEventListener("submit", async (e) => {
@@ -10,7 +20,6 @@ form.addEventListener("submit", async (e) => {
 
   if (!email || !password) return toast("Enter an email and a password.", "error");
   if (password.length < 8) return toast("Use a password with at least 8 characters.", "error");
-  if (nativeLang === learningLang) return toast("Pick a language you're learning that's different from the one you speak.", "error");
 
   btn.disabled = true;
   btn.textContent = "Creating account…";
