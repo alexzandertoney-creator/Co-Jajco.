@@ -156,6 +156,8 @@ export function parseStoryResponse(jsonString) {
     if (!data.story || !Array.isArray(data.tokens)) {
       throw new Error('Invalid story format: missing story or tokens array');
     }
+    // Drop malformed tokens instead of crashing later when sorting/rendering.
+    data.tokens = data.tokens.filter(t => t && typeof t.text === 'string' && t.text.trim());
     
     return data;
   } catch (error) {
@@ -191,8 +193,8 @@ export class StoryTokenizer {
       const keyNorm = normalize(token.text);
       const keyExact = (token.text || '').trim();
 
-      // canonical by normalized form
-      this.tokenMap.set(keyNorm, token);
+      // canonical by normalized form; don't let "sie" overwrite "się"
+      if (!this.tokenMap.has(keyNorm)) this.tokenMap.set(keyNorm, token);
       // also store exact original as fallback
       this.tokenMap.set(keyExact, token);
     });
@@ -348,7 +350,8 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
         const slice = afterSpaceRaw.slice(0, len);
         const normSlice = normalizeKey(slice);
         if (normSlice.length >= tokenNorm.length) {
-          if (normSlice.startsWith(tokenNorm)) {
+          // Whole-word only: "on" must not light up the start of "ona".
+          if (normSlice.startsWith(tokenNorm) && !/\p{L}/u.test(afterSpaceRaw[len] || '')) {
             matchLen = len;
           }
           break;
@@ -511,6 +514,7 @@ export class StoryTTSPlayer {
       de: 'de-DE',
       it: 'it-IT',
       ja: 'ja-JP',
+      jp: 'ja-JP', // stored language code for Japanese
       zh: 'zh-CN'
     };
   }
@@ -754,10 +758,15 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
   const updateCurrentTokenDisplay = () => {
     const token = ttsPlayer.getCurrentToken();
     if (token) {
-      tokenDisplayEl.innerHTML = `
-        <div class="word">${token.text}</div>
-        <div class="meta">${token.translation}</div>
-      `;
+      // textContent: tokens come from pasted AI output and public stories.
+      tokenDisplayEl.replaceChildren();
+      const w = document.createElement('div');
+      w.className = 'word';
+      w.textContent = token.text;
+      const t = document.createElement('div');
+      t.className = 'meta';
+      t.textContent = token.translation || '';
+      tokenDisplayEl.append(w, t);
     } else {
       tokenDisplayEl.innerHTML = '<div class="meta">Press play or use the arrow keys</div>';
     }
@@ -765,7 +774,8 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
 
   // Keyboard shortcuts hint
   const hintEl = document.createElement('div');
-  hintEl.innerHTML = '💡 <strong>Keyboard:</strong> ← Previous | → Next | Space = Play/Pause';
+  hintEl.className = 'meta';
+  hintEl.textContent = 'Keyboard: ← previous word, → next word, Space to play or pause';
 
   // Add to container
   controlsEl.appendChild(prevBtn);
@@ -791,10 +801,19 @@ export function renderStoryTTSControls(containerSelector, ttsPlayer) {
 /**
  * Attach keyboard shortcuts for story TTS
  */
+// One document listener for the whole page; each new story just swaps the player.
+// (Previously a listener was added per story, so Space toggled N times.)
+let storyKeys = null;
 export function attachStoryTTSKeyboardShortcuts(ttsPlayer, updatePlayBtnCallback) {
+  const firstBind = !storyKeys;
+  storyKeys = { ttsPlayer, updatePlayBtnCallback };
+  if (!firstBind) return;
   document.addEventListener('keydown', (e) => {
-    // Only handle when not typing in input/textarea
-    if (e.target.matches('input, textarea')) return;
+    const { ttsPlayer, updatePlayBtnCallback } = storyKeys;
+    if (document.body.dataset.group !== 'storyAnalyzer') return;
+    if (document.getElementById('storyReviewMode')?.style.display === 'none') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
 
     switch (e.key) {
       case 'ArrowLeft':

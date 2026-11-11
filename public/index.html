@@ -106,33 +106,68 @@
     </div>
   </section>
 
+  <!-- Shown instead of the study modes when there is nothing to study -->
+  <div id="deckEmpty" class="deck-empty-state" hidden></div>
+
   <!-- LEARN -->
   <section id="learnContainer" class="mode-container">
-    <div class="panel quiz">
-      <p id="learnQuestion" class="prompt-word"></p>
-      <input id="learnAnswer" placeholder="Type the translation" autocomplete="off" />
-      <button id="submitLearn">Check answer</button>
-      <p id="learnFeedback" aria-live="polite"></p>
+    <div class="mode-toolbar">
+      <span id="learnProgress" class="progress-text"></span>
+      <div class="toolbar-controls">
+        <label class="inline-select">
+          <span>Answer with</span>
+          <select id="learnDirection">
+            <option value="meaning">the meaning</option>
+            <option value="word">the word</option>
+          </select>
+        </label>
+        <label class="study-toggle">
+          <input type="checkbox" id="shuffleToggle">
+          Shuffle
+        </label>
+      </div>
     </div>
-    <label class="study-toggle">
-      <input type="checkbox" id="shuffleToggle">
-      Shuffle cards
-    </label>
+    <div class="progress-bar" aria-hidden="true"><span id="learnBar"></span></div>
+
+    <form class="panel quiz" id="learnPanel" autocomplete="off" novalidate>
+      <p id="learnPromptLabel" class="quiz-label">Type the meaning</p>
+      <p id="learnQuestion" class="prompt-word"></p>
+      <input id="learnAnswer" placeholder="Your answer" autocapitalize="off" spellcheck="false" aria-labelledby="learnPromptLabel" />
+      <div id="accentBar" class="accent-bar" hidden></div>
+      <p id="learnFeedback" aria-live="polite"></p>
+      <div class="quiz-actions">
+        <button id="learnSkip" class="ghost" type="button">I don't know</button>
+        <button id="submitLearn" type="submit">Check</button>
+      </div>
+    </form>
+    <div id="learnResults" class="panel results" hidden></div>
   </section>
 
   <!-- TEST -->
   <section id="testContainer" class="mode-container">
-    <div class="panel quiz">
+    <div class="mode-toolbar">
+      <span id="testProgress" class="progress-text"></span>
+      <span id="testScore" class="meta"></span>
+    </div>
+    <div class="progress-bar" aria-hidden="true"><span id="testBar"></span></div>
+
+    <div class="panel quiz" id="testPanel">
+      <p class="quiz-label">Pick the meaning</p>
       <p id="testQuestion" class="prompt-word"></p>
       <div id="testOptions"></div>
       <p id="testFeedback" aria-live="polite"></p>
-      <p id="testScore" class="meta"></p>
+      <p class="hint">Tip: press 1–4 to answer</p>
     </div>
+    <div id="testResults" class="panel results" hidden></div>
   </section>
 
   <!-- MATCH -->
   <section id="matchContainer" class="mode-container">
-    <p class="timer">Time left <strong><span id="matchTimer">60</span>s</strong></p>
+    <div class="mode-toolbar">
+      <p class="timer">Time left <strong><span id="matchTimer">60</span>s</strong></p>
+      <span id="matchPairs" class="meta"></span>
+      <button id="matchRestart" class="ghost small" type="button">New game</button>
+    </div>
     <div id="matchGrid"></div>
     <p id="matchFeedback" aria-live="polite"></p>
   </section>
@@ -326,6 +361,7 @@
 
   </main>
 
+  <script src="js/dialogs.js"></script>
   <script type="module" src="js/main.js"></script>
   <script src="js/languageSync.js"></script>
 </body>

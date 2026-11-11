@@ -1,3 +1,4 @@
+import { esc } from './utils.js';
 import * as DataManager from './data.js';
 import * as UI from './ui.js';
 import { LANGUAGE_LEVELS, LANGUAGES } from './constants.js';
@@ -58,7 +59,7 @@ async function loadPublicLibrary() {
     renderStoryList(stories);
   } catch (error) {
     console.error('Failed to load public library:', error);
-    alert('Unable to load public library. Try again later.');
+    toast('Unable to load public library. Try again later.', 'error');
   } finally {
     
   }
@@ -100,13 +101,13 @@ function renderDeckList(decks) {
     card.className = 'public-library-card';
     card.innerHTML = `
       <div>
-          <h3>${deck.name}</h3>
-          <p class="lib-lang">${deck.learningLang || 'Unknown'} → ${deck.nativeLang || 'Unknown'} · ${deck.level || 'Unspecified'}</p>
-          <p class="meta">By ${deck.author || 'Anonymous'} · ${new Date(deck.created_at).toLocaleDateString()}</p>
+          <h3>${esc(deck.name)}</h3>
+          <p class="lib-lang">${esc(langName(deck.learningLang))} → ${esc(langName(deck.nativeLang))} · ${esc(deck.level || 'Any level')}</p>
+          <p class="meta">By ${esc(deck.author || 'Anonymous')} · ${esc(new Date(deck.created_at).toLocaleDateString())}</p>
         </div>
       <div class="lib-actions">
-        <button type="button" data-action="import-deck" data-deck-id="${deck.id}">Import Deck</button>
-        <button type="button" class="ghost" data-action="copy-deck-json" data-deck-id="${deck.id}">Copy JSON</button>
+        <button type="button" data-action="import-deck" data-deck-id="${esc(deck.id)}">Add to my decks</button>
+        <button type="button" class="ghost" data-action="copy-deck-json" data-deck-id="${esc(deck.id)}">Copy JSON</button>
       </div>
     `;
 
@@ -134,12 +135,12 @@ function renderStoryList(stories) {
     card.className = 'public-library-card';
     card.innerHTML = `
       <div>
-          <h3>${story.title || 'Published Story'}</h3>
-          <p class="lib-lang">${story.learningLang || 'Unknown'} → ${story.nativeLang || 'Unknown'} · ${story.level || 'Unspecified'}</p>
-          <p class="meta">By ${story.author || 'Anonymous'} · ${new Date(story.created_at).toLocaleDateString()}</p>
+          <h3>${esc(story.title || 'Published Story')}</h3>
+          <p class="lib-lang">${esc(langName(story.learningLang))} → ${esc(langName(story.nativeLang))} · ${esc(story.level || 'Any level')}</p>
+          <p class="meta">By ${esc(story.author || 'Anonymous')} · ${esc(new Date(story.created_at).toLocaleDateString())}</p>
         </div>
       <div class="lib-actions">
-        <button type="button" class="ghost" data-action="copy-story-json" data-story-id="${story.id}">Copy JSON</button>
+        <button type="button" class="ghost" data-action="copy-story-json" data-story-id="${esc(story.id)}">Copy JSON</button>
       </div>
     `;
 
@@ -161,7 +162,7 @@ async function importPublicDeck(deck) {
     const newDeck = await DataManager.createDeck(localDeckName, learningLang, nativeLang);
     
     if (!newDeck) {
-      alert('Failed to create deck on server');
+      toast('Failed to create deck on server', 'error');
       return;
     }
 
@@ -176,25 +177,25 @@ async function importPublicDeck(deck) {
 
     DataManager.updateFilteredDecks();
     UI.updateDeckSelect(DataManager.filteredDecks);
-    alert(`Imported public deck: ${localDeckName}`);
+    toast(`Imported public deck: ${localDeckName}`, 'success');
   } catch (error) {
     console.error('Failed to import public deck:', error);
-    alert('Failed to import deck');
+    toast('Failed to import deck', 'error');
   }
 }
 
 function copyText(text) {
   navigator.clipboard.writeText(text).then(() => {
-    alert('Copied to clipboard');
+    toast('Copied to clipboard', 'success');
   }).catch(err => {
     console.error('Copy failed:', err);
-    alert('Unable to copy');
+    toast('Unable to copy', 'error');
   });
 }
 
 export async function publishCurrentDeck(deck, level) {
   if (!deck || !Array.isArray(deck.cards)) {
-    alert('No deck selected to publish.');
+    toast('No deck selected to publish.', 'error');
     return;
   }
 
@@ -223,17 +224,17 @@ export async function publishCurrentDeck(deck, level) {
     }
 
     const published = await res.json();
-    alert(`Deck published as "${published.name}"`);
+    toast(`Deck published as "${published.name}"`, 'success');
     loadPublicLibrary();
   } catch (error) {
     console.error('Publish deck failed:', error);
-    alert(`Unable to publish deck: ${error.message}`);
+    toast(`Unable to publish deck: ${error.message}`, 'error');
   }
 }
 
 export async function publishCurrentStory(data, level, title) {
   if (!data?.story || !Array.isArray(data.tokens)) {
-    alert('No story loaded to publish. Analyze a story first.');
+    toast('No story loaded to publish. Analyze a story first.', 'error');
     return;
   }
 
@@ -264,10 +265,14 @@ export async function publishCurrentStory(data, level, title) {
     }
 
     const published = await res.json();
-    alert(`Story published as "${published.title || 'Published Story'}"`);
+    toast(`Story published as "${published.title || 'Published Story'}"`, 'success');
     loadPublicLibrary();
   } catch (error) {
     console.error('Publish story failed:', error);
-    alert(`Unable to publish story: ${error.message}`);
+    toast(`Unable to publish story: ${error.message}`, 'error');
   }
+}
+
+function langName(code) {
+  return LANGUAGES.find(l => l.code === code)?.name || code || 'Unknown';
 }

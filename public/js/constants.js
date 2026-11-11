@@ -9,6 +9,7 @@ export const langMap = {
   de: 'de-DE',
   it: 'it-IT',
   ja: 'ja-JP',
+  jp: 'ja-JP', // stored language code for Japanese
   zh: 'zh-CN'
 };
 
@@ -19,6 +20,7 @@ export const LANGUAGES = [
   { code: 'de', name: 'German' },
   { code: 'pl', name: 'Polish' },
   { code: 'jp', name: 'Japanese' },
+  { code: 'it', name: 'Italian' },
   { code: 'en', name: 'English' }
 ];
 

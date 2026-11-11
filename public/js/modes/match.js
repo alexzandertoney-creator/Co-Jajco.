@@ -1,151 +1,112 @@
 // ============ MATCH GAME MODE ============
+// Pair each word with its meaning before the clock runs out.
 
 import { MATCH_GAME } from '../constants.js';
 import { shuffleArray } from '../utils.js';
 import { matchGrid, matchTimerEl, matchFeedback } from '../ui.js';
 import { updateCardStatsFromCard } from '../data.js';
 
+const $ = (id) => document.getElementById(id);
+
 export class MatchMode {
   constructor() {
-    this.cards = [];
+    this.deck = null;
+    this.tiles = [];
     this.selected = [];
+    this.pairsLeft = 0;
     this.timer = MATCH_GAME.INITIAL_TIME;
     this.interval = null;
+    this.clearTimer = null;
+    $('matchRestart')?.addEventListener('click', () => this.start(this.deck));
   }
 
-  /**
-   * Start match game
-   */
   start(deck) {
     this.reset();
-    matchGrid.innerHTML = '';
+    this.deck = deck;
+    matchGrid.replaceChildren();
     matchFeedback.textContent = '';
-    this.selected = [];
-
     if (!deck?.cards.length) return;
 
-    // Pick random cards
-    const shuffled = [...deck.cards].sort(() => Math.random() - 0.5);
-    const selectedCards = shuffled.slice(0, MATCH_GAME.CARDS_COUNT);
+    const picked = shuffleArray([...deck.cards]).slice(0, MATCH_GAME.CARDS_COUNT);
+    // Tiles remember which card they came from, so identical texts on different
+    // cards can't be "matched" by accident.
+    this.tiles = shuffleArray(picked.flatMap((card) => [
+      { card, text: card.question, side: 'q' },
+      { card, text: card.answer, side: 'a' },
+    ]));
+    this.pairsLeft = picked.length;
 
-    // Create question + answer entries
-    this.cards = [];
-    selectedCards.forEach(c => {
-      this.cards.push({ text: c.question, pair: c.answer, matched: false, sourceCard: c });
-      this.cards.push({ text: c.answer, pair: c.question, matched: false, sourceCard: c });
-    });
-
-    // Shuffle
-    this.cards = shuffleArray(this.cards);
-
-    // Create buttons
-    this.cards.forEach((c, i) => {
+    this.tiles.forEach((tile) => {
       const btn = document.createElement('button');
-      btn.textContent = c.text;
+      btn.type = 'button';
       btn.className = 'match-card';
-      btn.dataset.index = i;
-      btn.addEventListener('click', () => this.selectCard(i, btn));
+      btn.textContent = tile.text;
+      btn.addEventListener('click', () => this.select(tile, btn));
+      tile.btn = btn;
       matchGrid.appendChild(btn);
     });
 
-    this.timer = MATCH_GAME.INITIAL_TIME;
+    this.updatePairs();
     matchTimerEl.textContent = this.timer;
-    this.startTimer();
+    this.interval = setInterval(() => this.tick(), MATCH_GAME.UPDATE_INTERVAL);
   }
 
-  /**
-   * Select a card
-   */
-  selectCard(index, btn) {
-    if (btn.classList.contains('matched') || btn.classList.contains('selected')) return;
-    if (this.selected.length >= 2) return;
-
+  select(tile, btn) {
+    if (btn.disabled || btn.classList.contains('selected') || this.selected.length >= 2) return;
     btn.classList.add('selected');
-    this.selected.push({ card: this.cards[index], btn });
-
-    if (this.selected.length === 2) {
-      this.checkMatch();
-    }
+    this.selected.push(tile);
+    if (this.selected.length === 2) this.check();
   }
 
-  /**
-   * Check if two selected cards match
-   */
-  checkMatch() {
-    const [first, second] = this.selected;
-
-    if (first.card.pair === second.card.text && second.card.pair === first.card.text) {
-      // Match!
-      first.btn.classList.add('matched');
-      second.btn.classList.add('matched');
-      matchFeedback.textContent = '✅ Match!';
-
-      const sourceCard = first.card.sourceCard || second.card.sourceCard;
-      if (sourceCard) {
-        updateCardStatsFromCard(sourceCard, true);
-      }
-
+  check() {
+    const [a, b] = this.selected;
+    if (a.card === b.card && a.side !== b.side) {
+      [a, b].forEach((t) => { t.btn.classList.remove('selected'); t.btn.classList.add('matched'); t.btn.disabled = true; });
       this.selected = [];
-      this.checkWin();
+      this.pairsLeft--;
+      matchFeedback.textContent = 'Match!';
+      updateCardStatsFromCard(a.card, true);
+      this.updatePairs();
+      if (this.pairsLeft === 0) this.finish(true);
     } else {
-      // No match
-      matchFeedback.textContent = '❌ No match';
-
-      const firstSource = first.card.sourceCard;
-      const secondSource = second.card.sourceCard;
-      if (firstSource) {
-        updateCardStatsFromCard(firstSource, false);
-      }
-      if (secondSource && secondSource !== firstSource) {
-        updateCardStatsFromCard(secondSource, false);
-      }
-
-      setTimeout(() => {
-        first.btn.classList.remove('selected');
-        second.btn.classList.remove('selected');
+      // A wrong guess doesn't say which word you didn't know, so it isn't recorded as a miss.
+      matchFeedback.textContent = 'Not a pair, try again';
+      [a, b].forEach((t) => t.btn.classList.add('wrong'));
+      this.clearTimer = setTimeout(() => {
+        [a, b].forEach((t) => t.btn.classList.remove('selected', 'wrong'));
         this.selected = [];
-      }, 1000);
+      }, 700);
     }
   }
 
-  /**
-   * Check if all matched
-   */
-  checkWin() {
-    const allMatched = this.cards.every((_, i) => {
-      return matchGrid.children[i]?.classList.contains('matched');
-    });
+  tick() {
+    this.timer--;
+    matchTimerEl.textContent = this.timer;
+    if (this.timer <= 0) this.finish(false);
+  }
 
-    if (allMatched) {
-      clearInterval(this.interval);
-      matchFeedback.textContent = `🎉 You won! Time left: ${this.timer}s`;
+  finish(won) {
+    clearInterval(this.interval);
+    if (won) {
+      matchFeedback.textContent = `All matched with ${this.timer}s to spare!`;
+    } else {
+      matchFeedback.textContent = `Time’s up. ${this.tiles.length / 2 - this.pairsLeft} of ${this.tiles.length / 2} pairs matched.`;
+      this.tiles.forEach((t) => { t.btn.disabled = true; });
     }
+    $('matchRestart').textContent = 'Play again';
   }
 
-  /**
-   * Start timer
-   */
-  startTimer() {
-    this.interval = setInterval(() => {
-      this.timer--;
-      matchTimerEl.textContent = this.timer;
-
-      if (this.timer <= 0) {
-        clearInterval(this.interval);
-        matchFeedback.textContent = '⏱ Time\'s up!';
-        document.querySelectorAll('.match-card').forEach(b => b.disabled = true);
-      }
-    }, MATCH_GAME.UPDATE_INTERVAL);
+  updatePairs() {
+    $('matchPairs').textContent = `${this.pairsLeft} pair${this.pairsLeft === 1 ? '' : 's'} left`;
   }
 
-  /**
-   * Reset
-   */
   reset() {
     clearInterval(this.interval);
-    this.cards = [];
+    clearTimeout(this.clearTimer);
+    this.tiles = [];
     this.selected = [];
     this.timer = MATCH_GAME.INITIAL_TIME;
+    if ($('matchRestart')) $('matchRestart').textContent = 'New game';
   }
 }
 

@@ -1,51 +1,42 @@
-document.getElementById("registerBtn").onclick = async () => {
-  const email = document.getElementById("email").value;
+const form = document.getElementById("registerForm");
+const btn = document.getElementById("registerBtn");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   const nativeLang = document.getElementById("nativeLang").value;
   const learningLang = document.getElementById("learningLang").value;
 
-  console.log("REGISTER DATA:", { email, password, nativeLang, learningLang });
+  if (!email || !password) return toast("Enter an email and a password.", "error");
+  if (password.length < 8) return toast("Use a password with at least 8 characters.", "error");
+  if (nativeLang === learningLang) return toast("Pick a language you're learning that's different from the one you speak.", "error");
 
-  if (!email || !password || !nativeLang || !learningLang) {
-    alert("Please fill in all fields");
-    return;
-  }
-
+  btn.disabled = true;
+  btn.textContent = "Creating account…";
   try {
     const res = await fetch("/api/auth/register", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        nativeLang,
-        learningLang
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, nativeLang, learningLang }),
     });
-
-    console.log("RAW RESPONSE:", res);
-
-    let data;
-    try {
-      data = await res.json();
-    } catch (e) {
-      console.error("JSON parse failed");
-      data = {};
-    }
-
-    console.log("RESPONSE DATA:", data);
-
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      alert(data.error || "Registration failed");
+      toast(data.error || "Couldn't create the account. Try again.", "error");
       return;
     }
-
-    window.location.href = "login.html";
-
-  } catch (err) {
-    console.error("FETCH ERROR:", err);
-    alert("Something went wrong");
+    // The API returns a token on sign-up, so go straight in.
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("learningLang", learningLang);
+      window.location.replace("index.html");
+    } else {
+      window.location.replace("login.html");
+    }
+  } catch {
+    toast("Can't reach the server. Check your connection and try again.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Create account";
   }
-};
+});

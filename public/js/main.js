@@ -27,16 +27,8 @@ async function initializeApp() {
     // Load user first
     await DataManager.loadUser();
     // Load top words for story analysis (used to mark common words)
-    await StoryAnalyzer.loadTopWords();
+    StoryAnalyzer.loadTopWords(DataManager.currentUser?.learningLang); // not awaited: don't block startup
     
-    // Set language selector to user's current language
-      // Prefer a value stored in localStorage (keeps pages in sync across tabs)
-      const storedLang = localStorage.getItem('learningLang');
-      if (storedLang) {
-        UI.languageSelect.value = storedLang;
-      } else if (DataManager.currentUser?.learningLang) {
-        UI.languageSelect.value = DataManager.currentUser.learningLang;
-      }
     
     // Load decks for user
     DataManager.updateFilteredDecks();
@@ -81,28 +73,14 @@ async function initializeApp() {
     
     // Show first card if decks exist
     const firstDeck = DataManager.getDeck(0);
-    if (firstDeck) {
-      flashcardsMode.showCard(firstDeck, DataManager.currentUser.learningLang);
-    } else {
-      // Show empty state if no decks
-      UI.card.innerHTML = '<div class="card-empty"><h3>No decks yet</h3><p class="meta">Create one with “New deck”, or pick from the <a href="recommended.html">starter decks</a>.</p></div>';
-    }
-    // Listen for decks created elsewhere and auto-refresh UI
-    try {
-      window.addEventListener('deckCreated', (e) => {
-        const newDeck = e.detail;
-        DataManager.updateFilteredDecks();
-        UI.updateDeckSelect(DataManager.filteredDecks);
-        const idx = DataManager.filteredDecks.findIndex(d => d.id === newDeck.id);
-        if (idx >= 0) {
-          currentDeckIndex = idx;
-          UI.deckSelect.value = currentDeckIndex;
-          flashcardsMode.showCard(DataManager.getDeck(currentDeckIndex), DataManager.currentUser.learningLang);
-        }
-      });
-    } catch (e) {
-      // ignore
-    }
+    refreshDecks(firstDeck?.id ?? null, { rerender: false });
+    if (firstDeck) flashcardsMode.showCard(firstDeck, DataManager.currentUser.learningLang);
+
+    // Decks created elsewhere (library import, story decks): add to the picker
+    // but keep the user on the deck they're looking at.
+    window.addEventListener('deckCreated', () => {
+      refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
+    });
 
     // Deep link from other pages, e.g. index.html#deckEditor
     const hashMode = location.hash.slice(1);
@@ -124,81 +102,16 @@ function setupEventListeners() {
     window.location.href = 'login.html';
   });
 
-  // Language selection
-  UI.languageSelect?.addEventListener('change', async () => {
-    const selectedLang = UI.languageSelect.value;
-    // Persist selection locally so other pages/tabs update
-    try { localStorage.setItem('learningLang', selectedLang); } catch {}
-    
-    try {
-      // Update language on server
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/auth/me/language', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ learningLang: selectedLang })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update language');
-      }
-
-      // Reload user data
-      await DataManager.loadUser();
-      
-      // Update filtered decks for new language
-      DataManager.updateFilteredDecks();
-      
-      // Update UI
-      UI.updateDeckSelect(DataManager.filteredDecks);
-      
-      // Reset to first deck
-      currentDeckIndex = 0;
-      UI.deckSelect.value = 0;
-      
-      // Show first card in new language
-      const deck = DataManager.getDeck(0);
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-      
-      alert(`Learning language updated to: ${selectedLang}`);
-    } catch (error) {
-      console.error('Failed to update language:', error);
-      alert('Failed to update language. Please try again.');
-      // Revert the select value
-      UI.languageSelect.value = DataManager.currentUser.learningLang;
-    }
-  });
-
-  // Load saved language
-  // Ensure select matches localStorage if changed elsewhere
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'learningLang' && e.newValue) {
-      if (UI.languageSelect && UI.languageSelect.value !== e.newValue) {
-        UI.languageSelect.value = e.newValue;
-        // Programmatically trigger change so server and app state update
-        UI.languageSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
-  });
+  // Language switching lives in languageSync.js (shared by every page).
 
   // Deck selection
   UI.deckSelect?.addEventListener('change', (e) => {
-    currentDeckIndex = Number(e.target.value);
-    const deck = DataManager.getDeck(currentDeckIndex);
-
-    if (currentMode === MODES.DECK_EDITOR) {
-      deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
-    } else {
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-    }
+    refreshDecks(DataManager.getDeck(Number(e.target.value))?.id ?? null);
   });
 
   // New deck
   UI.newDeckBtn?.addEventListener('click', async () => {
-    const name = prompt('Deck name?');
+    const name = await promptDialog('New deck', { label: 'Deck name', placeholder: 'e.g. Kitchen words', confirmLabel: 'Create deck' });
     if (!name) return;
 
     const deck = await DataManager.createDeck(
@@ -207,22 +120,16 @@ function setupEventListeners() {
       DataManager.currentUser.nativeLang
     );
 
-    if (deck) {
-      DataManager.updateFilteredDecks();
-      UI.updateDeckSelect(DataManager.filteredDecks);
-
-      currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
-      UI.deckSelect.value = currentDeckIndex;
-
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-    }
+    if (!deck) return toast('Couldn’t create the deck. Try again.', 'error');
+    refreshDecks(deck.id, { rerender: false });
+    switchMode(MODES.DECK_EDITOR);
+    toast(`Deck “${deck.name}” created. Add your first cards.`, 'success');
+    UI.editorQuestion?.focus();
   });
 
   // Mode switching
   document.querySelectorAll('.mode-selector button')?.forEach(btn => {
     btn.addEventListener('click', () => {
-      clearInterval(matchMode.interval);
-      
       const mode = btn.dataset.mode;
       if (mode) switchMode(mode);
     });
@@ -290,13 +197,7 @@ function setupFlashcardsListeners() {
     const deck = DataManager.getDeck(currentDeckIndex);
     const currentCard = flashcardsMode.getCurrentCard(deck);
     if (currentCard) {
-      const isFlipped = UI.card.classList.contains('flipped');
-      const isFrontLearning = flashcardsMode.frontIsQuestion
-        ? deck.learningLang === DataManager.currentUser.learningLang
-        : deck.nativeLang === DataManager.currentUser.learningLang;
-      
-      // Auto-speak if needed
-      const speakMode = document.getElementById('speakMode')?.value || SPEAK_MODES.OFF;
+      flashcardsMode.autoSpeak(currentCard, deck, DataManager.currentUser.learningLang);
     }
   });
 
@@ -305,7 +206,7 @@ function setupFlashcardsListeners() {
     const deck = DataManager.getDeck(currentDeckIndex);
     const currentCard = flashcardsMode.getCurrentCard(deck);
     if (currentCard) {
-      flashcardsMode.speakVisible(currentCard, DataManager.currentUser.learningLang);
+      flashcardsMode.speakVisible(currentCard, DataManager.currentUser.learningLang, DataManager.currentUser.nativeLang);
     }
   });
 
@@ -314,7 +215,7 @@ function setupFlashcardsListeners() {
     const deck = DataManager.getDeck(currentDeckIndex);
     const currentCard = flashcardsMode.getCurrentCard(deck);
     if (currentCard) {
-      flashcardsMode.speakVisible(currentCard, DataManager.currentUser.learningLang);
+      flashcardsMode.speakVisible(currentCard, DataManager.currentUser.learningLang, DataManager.currentUser.nativeLang);
     }
   });
 
@@ -327,18 +228,24 @@ function setupFlashcardsListeners() {
   UI.correctBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
     if (flashcardsMode.studyMode) {
+      const card = flashcardsMode.getCurrentCard(deck);
+      if (!card) return;
       flashcardsMode.markCorrect();
-      await DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, true);
       flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
+      // Master Vocab holds the real cards from other decks; let data.js find the owner.
+      DataManager.updateCardStatsFromCard(card, true, deck.id === 'master-vocab' ? undefined : deck.id);
     }
   });
 
   UI.incorrectBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
     if (flashcardsMode.studyMode) {
+      const card = flashcardsMode.getCurrentCard(deck);
+      if (!card) return;
       flashcardsMode.markIncorrect();
-      await DataManager.updateCardStats(deck.id, flashcardsMode.sessionIndex, false);
       flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
+      // Master Vocab holds the real cards from other decks; let data.js find the owner.
+      DataManager.updateCardStatsFromCard(card, false, deck.id === 'master-vocab' ? undefined : deck.id);
     }
   });
 }
@@ -347,27 +254,16 @@ function setupFlashcardsListeners() {
  * Setup learn mode listeners
  */
 function setupLearnListeners() {
-  UI.submitLearn?.addEventListener('click', () => {
+  // One form submit handles the button and the Enter key (they used to double-submit).
+  document.getElementById('learnPanel')?.addEventListener('submit', (e) => {
+    e.preventDefault();
     learnMode.submitAnswer();
   });
+  document.getElementById('learnSkip')?.addEventListener('click', () => learnMode.skip());
 
-  UI.learnAnswer?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') learnMode.submitAnswer();
-  });
-
-  UI.shuffleToggle?.addEventListener('change', () => {
-    const deck = DataManager.getDeck(currentDeckIndex);
-    
-    // Handle shuffle for study mode
-    if (flashcardsMode.studyMode) {
-      flashcardsMode.setStudyShuffle(deck, UI.shuffleToggle.checked);
-      flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);
-    } 
-    // Handle shuffle for learn mode
-    else if (currentMode === MODES.LEARN) {
-      learnMode.startSession(deck, UI.shuffleToggle.checked);
-    }
-  });
+  const restartLearn = () => learnMode.startSession(DataManager.getDeck(currentDeckIndex), UI.shuffleToggle.checked);
+  document.getElementById('learnDirection')?.addEventListener('change', restartLearn);
+  UI.shuffleToggle?.addEventListener('change', restartLearn);
 }
 
 /**
@@ -381,13 +277,20 @@ function setupTestListeners() {
  * Setup deck editor listeners
  */
 function setupDeckEditorListeners() {
-  UI.editorAdd?.addEventListener('click', async () => {
+  document.getElementById('editorControls')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
     const q = UI.editorQuestion.value.trim();
     const a = UI.editorAnswer.value.trim();
-    if (!q || !a) return;
+    if (!q || !a) return toast('Fill in both the word and its translation.', 'error');
+    const deck = DataManager.getDeck(currentDeckIndex);
+    if (!deck || deck.id === 'master-vocab') return toast('Pick or create one of your own decks first.', 'error');
 
-    await deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks);
-    deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
+    const ok = await deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks);
+    if (!ok) return toast('Couldn’t save the card. Try again.', 'error');
+    UI.editorQuestion.value = '';
+    UI.editorAnswer.value = '';
+    UI.editorQuestion.focus();
+    refreshDecks(deck.id);
   });
 
   UI.deleteDeckBtn?.addEventListener('click', async () => {
@@ -395,10 +298,8 @@ function setupDeckEditorListeners() {
     if (!deck || deck.id === 'master-vocab') return;
 
     await deckEditor.deleteDeck(deck.id, () => {
-      currentDeckIndex = 0;
-      DataManager.updateFilteredDecks();
-      UI.updateDeckSelect(DataManager.filteredDecks);
-      flashcardsMode.showCard(DataManager.getDeck(0), DataManager.currentUser.learningLang);
+      refreshDecks(null);
+      toast(`Deleted “${deck.name}”.`, 'success');
     });
   });
 
@@ -419,21 +320,23 @@ function setupDeckEditorListeners() {
   });
 
   UI.copyDeckPromptBtn?.addEventListener('click', () => {
-    if (!UI.deckPromptOutput.value) return alert('Generate a prompt first!');
-    navigator.clipboard.writeText(UI.deckPromptOutput.value);
-    alert('Deck prompt copied! Paste it into your AI tool.');
+    if (!UI.deckPromptOutput.value) return toast('Generate a prompt first.', 'error');
+    copyToClipboard(UI.deckPromptOutput.value, 'Prompt copied. Paste it into your AI chat.');
   });
 
-  UI.publishDeckBtn?.addEventListener('click', () => {
+  UI.publishDeckBtn?.addEventListener('click', async () => {
     const deck = DataManager.getDeck(currentDeckIndex);
-    if (!deck || deck.id === 'master-vocab') return alert('Select a deck first to publish.');
-    const level = prompt('Enter learning level for the public deck (A1, A2, B1, B2)', UI.deckPromptLevel.value || 'A1');
-    PublicLibrary.publishCurrentDeck(deck, level);
+    if (!deck || deck.id === 'master-vocab') return toast('Pick one of your own decks to publish. Master Vocab can’t be published.', 'error');
+    const res = await formDialog('Publish to library', [
+      { label: 'Level', options: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], value: UI.deckPromptLevel.value || 'A1' },
+    ], { confirmLabel: 'Publish', message: `“${deck.name}” will be visible to everyone learning this language.` });
+    if (!res) return;
+    PublicLibrary.publishCurrentDeck(deck, res[0]);
   });
 
   UI.importDeckJsonBtn?.addEventListener('click', () => {
     const jsonText = UI.deckImportJson.value.trim();
-    if (!jsonText) return alert('Paste deck JSON to import it.');
+    if (!jsonText) return toast('Paste deck JSON to import it.', 'error');
 
     const level = UI.deckPromptLevel.value;
     const topic = UI.deckPromptTopic.value.trim() || 'Custom deck';
@@ -449,21 +352,12 @@ function setupDeckEditorListeners() {
       );
 
       if (!deck) {
-        return alert('Invalid deck JSON. Make sure the AI returns an array of cards with question and answer fields.');
+        return toast('Invalid deck JSON. Make sure the AI returns an array of cards with question and answer fields.', 'error');
       }
 
-      DataManager.updateFilteredDecks();
-      UI.updateDeckSelect(DataManager.filteredDecks);
-
-      currentDeckIndex = DataManager.filteredDecks.findIndex(d => d.id === deck.id);
-      if (currentDeckIndex < 0) currentDeckIndex = 0;
-      UI.deckSelect.value = currentDeckIndex;
-
-      deckEditor.render(DataManager.filteredDecks, currentDeckIndex);
-      alert(`Deck "${deck.name}" imported successfully!`);
-
-      const autoLevel = UI.deckPromptLevel.value || 'A1';
-      PublicLibrary.publishCurrentDeck(deck, autoLevel);
+      refreshDecks(deck.id);
+      UI.deckImportJson.value = '';
+      toast(`Imported “${deck.name}” with ${deck.cards?.length ?? 0} cards.`, 'success');
     })();
   });
 }
@@ -624,11 +518,11 @@ function setupStoryAnalyzerListeners() {
     }
   };
 
-  const analyzeStoryData = (rawText, shouldArchive = true, shouldPublish = true) => {
+  const analyzeStoryData = (rawText, shouldArchive = true, shouldPublish = false) => {
     const data = parseStoryResponse(rawText);
 
     if (!data) {
-      alert('Invalid JSON. Make sure you pasted the AI response correctly.');
+      toast('Invalid JSON. Make sure you pasted the AI response correctly.', 'error');
       return null;
     }
 
@@ -719,7 +613,7 @@ function setupStoryAnalyzerListeners() {
   const analyzeCurrentStory = () => {
     const sourceText = storyInput.value.trim();
     if (!sourceText) {
-      return alert('Please paste the tokenized story JSON into the text area first.');
+      return toast('Please paste the tokenized story JSON into the text area first.', 'error');
     }
 
     analyzeStoryData(sourceText);
@@ -746,7 +640,7 @@ function setupStoryAnalyzerListeners() {
     const rawText = storyInput.value.trim();
 
     if (!rawText) {
-      alert('Paste a story in the Story Input field first!');
+      toast('Paste a story in the Story Input field first!', 'error');
       return;
     }
 
@@ -764,22 +658,22 @@ function setupStoryAnalyzerListeners() {
     });
 
     promptOutput.value = prompt;
-    alert('Prompt generated! Copy it and paste the AI response back to analyze.');
+    toast('Prompt generated! Copy it and paste the AI response back to analyze.', 'info');
   });
 
   copyPromptBtn?.addEventListener('click', () => {
-    if (!promptOutput.value) return alert('Generate a prompt first!');
-    navigator.clipboard.writeText(promptOutput.value);
-    alert('Prompt copied! Paste it into ChatGPT.');
+    if (!promptOutput.value) return toast('Generate a prompt first.', 'error');
+    copyToClipboard(promptOutput.value, 'Prompt copied. Paste it into your AI chat.');
   });
 
   analyzeStoryBtn?.addEventListener('click', analyzeCurrentStory);
   backToInputBtn?.addEventListener('click', showStoryInputMode);
-  publishStoryBtn?.addEventListener('click', () => {
+  publishStoryBtn?.addEventListener('click', async () => {
+    if (!currentStoryData) return toast('Open a story first, then publish it.', 'error');
     const level = document.getElementById('promptLevel')?.value || 'A1';
     const defaultTitle = currentStoryData?.title || '';
-    const userTitle = prompt('Enter a title or description for this story (e.g., "Daily Routine", "Coffee Shop Adventure"):', defaultTitle)?.trim();
-    if (userTitle !== null && userTitle !== undefined) {
+    const userTitle = await promptDialog('Publish story', { label: 'Title', value: defaultTitle, placeholder: 'e.g. Daily routine', confirmLabel: 'Publish', message: 'Everyone learning this language will be able to read it.' });
+    if (userTitle !== null) {
       let finalTitle;
       if (userTitle) {
         finalTitle = userTitle;
@@ -794,8 +688,8 @@ function setupStoryAnalyzerListeners() {
     }
   });
 
-  clearStoryArchiveBtn?.addEventListener('click', () => {
-    if (!confirm('Clear all archived stories for this language?')) return;
+  clearStoryArchiveBtn?.addEventListener('click', async () => {
+    if (!await confirmDialog('Clear past stories?', 'This removes every saved story for this language. It can’t be undone.', { confirmLabel: 'Clear all', danger: true })) return;
     saveStoryArchive([]);
     renderStoryArchive();
   });
@@ -804,20 +698,22 @@ function setupStoryAnalyzerListeners() {
 
   createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
     if (!window.storyTokenizer) {
-      alert('No story loaded. Analyze a story first!');
+      toast('No story loaded. Analyze a story first!', 'error');
       return;
     }
 
     const selectedTokens = window.storyTokenizer.getSelectedTokens();
     if (selectedTokens.length === 0) {
-      alert('No tokens selected! Click tokens in the story to add them.');
+      toast('No tokens selected! Click tokens in the story to add them.', 'error');
       return;
     }
 
-    const deckName = prompt(
-      `Create deck with ${selectedTokens.length} tokens. Name:`,
-      `Story - ${new Date().toLocaleDateString()}`
-    );
+    const deckName = await promptDialog('Create flashcard deck', {
+      label: 'Deck name',
+      value: currentStoryData?.title || `Story – ${new Date().toLocaleDateString()}`,
+      confirmLabel: 'Create deck',
+      message: `${selectedTokens.length} word${selectedTokens.length === 1 ? '' : 's'} will become cards.`,
+    });
     if (!deckName) return;
 
     const cards = selectedTokens.map(token => ({
@@ -838,11 +734,10 @@ function setupStoryAnalyzerListeners() {
         await DataManager.addCardToDeck(newDeck.id, card.question, card.answer);
       }
       
-      DataManager.updateFilteredDecks();
-      UI.updateDeckSelect(DataManager.filteredDecks);
-      alert(`Deck "${deckName}" created with ${selectedTokens.length} tokens!`);
+      refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
+      toast(`Deck “${deckName}” created with ${selectedTokens.length} cards.`, 'success');
     } else {
-      alert('Failed to create deck');
+      toast('Failed to create deck', 'error');
     }
   });
 }
@@ -850,7 +745,44 @@ function setupStoryAnalyzerListeners() {
 /**
  * Switch mode
  */
+/**
+ * Single place that re-syncs everything after the deck list or selection changes:
+ * picker options, selected index, flashcard/shuffle/study state, empty state, and the active mode.
+ */
+function refreshDecks(selectDeckId, { rerender = true } = {}) {
+  DataManager.updateFilteredDecks();
+  UI.updateDeckSelect(DataManager.filteredDecks);
+  const idx = selectDeckId == null ? 0 : DataManager.filteredDecks.findIndex(d => d.id === selectDeckId);
+  currentDeckIndex = Math.max(0, idx);
+  if (DataManager.filteredDecks.length) UI.deckSelect.value = currentDeckIndex;
+
+  const deck = DataManager.getDeck(currentDeckIndex);
+  flashcardsMode.currentCardIndex = 0;
+  flashcardsMode.activeFlashcards = [];
+  if (deck?.cards?.length) {
+    if (UI.flashShuffleToggle?.checked) flashcardsMode.setShuffleMode(deck, true);
+    if (flashcardsMode.studyMode) flashcardsMode.startStudyMode(deck, true);
+  } else if (flashcardsMode.studyMode) {
+    flashcardsMode.sessionCards = [];
+  }
+  UI.renderDeckState(deck, DataManager.filteredDecks.length);
+  if (rerender) switchMode(currentMode);
+}
+
+async function copyToClipboard(text, successMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(successMessage, 'success');
+  } catch {
+    toast('Couldn’t copy automatically. Select the text and copy it yourself.', 'error');
+  }
+}
+
 function switchMode(mode) {
+  // Stop timers from the mode we're leaving so they can't fire into the new one.
+  matchMode.reset();
+  testMode.reset();
+  learnMode.reset();
   currentMode = mode;
   UI.renderMode(mode);
 

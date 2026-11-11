@@ -40,12 +40,12 @@ export async function loadUser() {
       }
     });
 
-    if (!res.ok) {
-      console.error('Auth failed:', res.status);
+    if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
       window.location.href = 'login.html';
       return;
     }
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
 
     const user = await res.json();
     setCurrentUser(user);
@@ -56,10 +56,10 @@ export async function loadUser() {
     
     return user;
   } catch (error) {
+    // Network/server trouble: keep the session, tell the user.
     console.error('Failed to load user:', error);
-    localStorage.removeItem('token');
-    window.location.href = 'login.html';
-    return;
+    window.toast?.('Can’t reach the server right now. Refresh to try again.', 'error');
+    throw error;
   }
 }
 
@@ -284,7 +284,7 @@ export async function addCardToDeck(deckId, question, answer) {
 }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card added to deck:', deckId);
     return true;
   } catch (error) {
@@ -322,9 +322,12 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
     return false;
   }
 
+  // Declared outside try so the catch block can roll back.
+
+  let removedCard = [];
+
   try {
-    // Remove card from local deck first
-    const removedCard = deck.cards.splice(cardIndex, 1);
+    removedCard = deck.cards.splice(cardIndex, 1);
 
     // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
@@ -346,7 +349,7 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card deleted from deck:', deckId);
     return true;
   } catch (error) {
@@ -381,9 +384,10 @@ export async function updateCard(deckId, cardIndex, question, answer) {
     return false;
   }
 
+  // Declared outside try so the catch block can roll back.
+  const oldCard = { ...deck.cards[cardIndex] };
   try {
     // Update local deck first
-    const oldCard = { ...deck.cards[cardIndex] };
     deck.cards[cardIndex].question = question;
     deck.cards[cardIndex].answer = answer;
 
@@ -402,18 +406,18 @@ export async function updateCard(deckId, cardIndex, question, answer) {
     if (!res.ok) {
       console.error('Failed to update deck:', res.status);
       // Restore old card
-      deck.cards[cardIndex] = oldCard;
+      Object.assign(deck.cards[cardIndex], oldCard);
       return false;
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     console.log('Card updated in deck:', deckId);
     return true;
   } catch (error) {
     console.error('Failed to update card:', error);
     // Restore old card
-    deck.cards[cardIndex] = oldCard;
+    Object.assign(deck.cards[cardIndex], oldCard);
     return false;
   }
 }
@@ -446,6 +450,8 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     } else {
       deck.cards[cardIndex].stats.incorrect++;
     }
+    // Smart Review uses this to bring back cards you haven't seen in a while.
+    deck.cards[cardIndex].lastReviewed = Date.now();
 
     // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
@@ -471,7 +477,7 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     }
 
     const updated = await res.json();
-    deck.cards = updated.cards || [];
+    syncCards(deck, updated.cards);
     return true;
   } catch (error) {
     console.error('Failed to update card stats:', error);
@@ -532,4 +538,17 @@ export function getCard(deckIndex, cardIndex) {
  */
 export function isMasterVocab(deckId) {
   return deckId === 'master-vocab';
+}
+
+/**
+ * Apply the server's copy of a deck's cards while keeping the existing card objects,
+ * so modes holding references (learn/match sessions, Master Vocab) stay in sync.
+ */
+function syncCards(deck, serverCards) {
+  if (!Array.isArray(serverCards)) return;
+  serverCards.forEach((c, i) => {
+    if (deck.cards[i]) Object.assign(deck.cards[i], c);
+    else deck.cards[i] = c;
+  });
+  deck.cards.length = serverCards.length;
 }

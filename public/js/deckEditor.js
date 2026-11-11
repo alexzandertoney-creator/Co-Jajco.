@@ -14,53 +14,56 @@ export class DeckEditor {
   render(filteredDecks, currentDeckIndex) {
     this.currentDeckIndex = currentDeckIndex;
     const deck = filteredDecks[currentDeckIndex];
+    const isMaster = deck?.id === 'master-vocab';
 
     cardList.innerHTML = '';
+    // Master Vocab is a read-only roll-up of every deck, so hide the editing tools.
+    document.body.classList.toggle('editor-readonly', !deck || isMaster);
 
-    if (!deck) return;
-
-    if (!deck.cards.length) {
-      cardList.innerHTML = '<li>No cards yet. Add one above!</li>';
+    if (!deck) {
+      cardList.appendChild(hint('Create a deck with “+ New deck” to start adding cards.'));
+      return;
     }
-
-    // Show Master Vocab as read-only with stats
-    if (deck.id === 'master-vocab') {
-      deck.cards.forEach((card, index) => {
-        const li = document.createElement('li');
-        li.className = 'card-item';
-
-        const statsSpan = document.createElement('span');
-        statsSpan.className = 'meta';
-        statsSpan.textContent =
-          `${card.stats?.correct || 0} right · ${card.stats?.incorrect || 0} missed`;
-
-        li.innerHTML = `<span class="pair"><strong>${card.question}</strong><span class="meta">${card.answer}</span></span>`;
-        li.appendChild(statsSpan);
-
-        cardList.appendChild(li);
-      });
+    if (!deck.cards.length) {
+      cardList.appendChild(hint('No cards yet. Add your first one above.'));
       return;
     }
 
-    // Normal deck: editable
+    // Built with textContent: card text comes from users, AI imports and the public library.
     deck.cards.forEach((card, index) => {
       const li = document.createElement('li');
       li.className = 'card-item';
 
-      li.innerHTML = `
-        <span class="pair"><strong>${card.question}</strong><span class="meta">${card.answer}</span></span>
-        <button class="btn-edit ghost" data-index="${index}">Edit</button>
-        <button class="btn-delete ghost danger" data-index="${index}">Delete</button>
-      `;
+      const pair = document.createElement('span');
+      pair.className = 'pair';
+      const q = document.createElement('strong');
+      q.textContent = card.question;
+      const a = document.createElement('span');
+      a.className = 'meta';
+      a.textContent = card.answer;
+      pair.append(q, a);
+      li.appendChild(pair);
 
-      li.querySelector('.btn-delete').addEventListener('click', () => {
-        this.deleteCard(deck.id, index);
-      });
+      const stats = document.createElement('span');
+      stats.className = 'card-stats';
+      const right = card.stats?.correct || 0;
+      const missed = card.stats?.incorrect || 0;
+      stats.textContent = right + missed ? `${right} right · ${missed} missed` : 'New';
+      li.appendChild(stats);
 
-      li.querySelector('.btn-edit').addEventListener('click', () => {
-        this.editCard(deck, index);
-      });
-
+      if (!isMaster) {
+        const edit = document.createElement('button');
+        edit.className = 'ghost small';
+        edit.textContent = 'Edit';
+        edit.setAttribute('aria-label', `Edit ${card.question}`);
+        edit.addEventListener('click', () => this.editCard(deck, index));
+        const del = document.createElement('button');
+        del.className = 'ghost danger small';
+        del.textContent = 'Delete';
+        del.setAttribute('aria-label', `Delete ${card.question}`);
+        del.addEventListener('click', () => this.deleteCard(deck.id, index));
+        li.append(edit, del);
+      }
       cardList.appendChild(li);
     });
   }
@@ -85,10 +88,11 @@ export class DeckEditor {
    * Delete card from deck
    */
   async deleteCard(deckId, cardIndex) {
-    const confirmed = confirm('Delete this card? This cannot be undone.');
+    const confirmed = await confirmDialog('Delete this card?', 'It will be removed from the deck. This can’t be undone.', { confirmLabel: 'Delete', danger: true });
     if (!confirmed) return;
 
-    await DataManager.deleteCardFromDeck(deckId, cardIndex);
+    const ok = await DataManager.deleteCardFromDeck(deckId, cardIndex);
+    if (!ok) toast('Couldn’t delete the card. Try again.', 'error');
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 
@@ -97,13 +101,16 @@ export class DeckEditor {
    */
   async editCard(deck, index) {
     const card = deck.cards[index];
-    const newQuestion = prompt('Edit question:', card.question);
-    if (newQuestion === null) return;
+    const res = await formDialog('Edit card', [
+      { label: 'Word or phrase', value: card.question },
+      { label: 'Translation', value: card.answer },
+    ]);
+    if (!res) return;
+    const [newQuestion, newAnswer] = res;
+    if (!newQuestion || !newAnswer) return toast('Both sides of the card need text.', 'error');
 
-    const newAnswer = prompt('Edit answer:', card.answer);
-    if (newAnswer === null) return;
-
-    await DataManager.updateCard(deck.id, index, newQuestion, newAnswer);
+    const ok = await DataManager.updateCard(deck.id, index, newQuestion, newAnswer);
+    if (!ok) toast('Couldn’t save your changes. Try again.', 'error');
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 
@@ -140,10 +147,11 @@ export class DeckEditor {
   async deleteDeck(deckId, onDeleteCallback) {
     if (!deckId || deckId === 'master-vocab') return;
 
-    const confirmed = confirm('Delete this entire deck? This cannot be undone.');
+    const confirmed = await confirmDialog('Delete this deck?', 'The deck and all its cards will be removed. This can’t be undone.', { confirmLabel: 'Delete deck', danger: true });
     if (!confirmed) return;
 
-    await DataManager.deleteDeck(deckId);
+    const ok = await DataManager.deleteDeck(deckId);
+    if (ok === false) return toast('Couldn’t delete the deck. Try again.', 'error');
     onDeleteCallback?.();
   }
 
@@ -272,3 +280,10 @@ export class DeckEditor {
 }
 
 export default new DeckEditor();
+
+function hint(text) {
+  const li = document.createElement('li');
+  li.className = 'empty-hint';
+  li.textContent = text;
+  return li;
+}

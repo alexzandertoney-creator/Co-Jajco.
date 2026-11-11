@@ -5,25 +5,16 @@ let topWordsMap = new Map();
 /**
  * Load top Spanish words from JSON
  */
-export async function loadTopWords() {
+export async function loadTopWords(learningLang) {
+  // The only word list shipped is Spanish; other languages have nothing to load.
+  if (learningLang !== "es") return;
   try {
     const res = await fetch("/vocab/spanish_words.json");
     const data = await res.json();
-
     topWordsMap = new Map();
-
-    data.forEach(group => {
-      const level = group.category; // 👈 A1, A2, etc.
-
-      group.cards.forEach(card => {
-        topWordsMap.set(card.question.toLowerCase(), {
-          translation: card.answer,
-          level: level
-        });
-      });
-    });
-
-    console.log("Top words loaded:", topWordsMap.size);
+    // The file is a flat list of { question, answer, type }; older builds grouped it by level.
+    const add = (card, level) => topWordsMap.set(String(card.question).toLowerCase(), { translation: card.answer, level });
+    data.forEach(item => (Array.isArray(item.cards) ? item.cards.forEach(c => add(c, item.category)) : add(item, item.level)));
   } catch (err) {
     console.error("Failed to load top words:", err);
   }

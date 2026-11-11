@@ -10,6 +10,7 @@ const langMap = {
   de: 'de-DE',
   it: 'it-IT',
   ja: 'ja-JP',
+  jp: 'ja-JP', // stored language code for Japanese
   zh: 'zh-CN'
 };
 
@@ -45,11 +46,16 @@ function speakText(text, langCode = currentUser?.learningLang || "en") {
     run();
   }
 }
-speechSynthesis.onvoiceschanged = () => {
-  console.log("Voices loaded:", speechSynthesis.getVoices());
-};
 
-async function saveSelectedDeck() {
+
+// Saves run one after another so an older PUT can't overwrite a newer one.
+let saveChain = Promise.resolve();
+function saveSelectedDeck() {
+  saveChain = saveChain.then(saveSelectedDeckNow);
+  return saveChain;
+}
+
+async function saveSelectedDeckNow() {
   if (!selectedDeck) return;
 
   const token = localStorage.getItem("token");
@@ -66,6 +72,7 @@ async function saveSelectedDeck() {
     if (!res.ok) throw new Error(`Deck update failed: ${res.status}`);
   } catch (error) {
     console.error("Failed to save Smart Review progress:", error);
+    toast("Couldn’t save your progress. Check your connection.", "error");
   }
 }
 async function loadUser() {
@@ -89,7 +96,7 @@ async function loadUser() {
 
     if (!res.ok) {
       console.error("Auth validation failed for smart review page:", res.status);
-      alert("Unable to verify your login right now. Please try again later.");
+      toast("Unable to verify your login right now. Please try again later.", 'error');
       return null;
     }
 
@@ -97,7 +104,7 @@ async function loadUser() {
     return currentUser;
   } catch (error) {
     console.error("Failed to fetch current user for smart review page:", error);
-    alert("Cannot reach the server to verify login. Please make sure the backend is running.");
+    toast("Cannot reach the server to verify login. Please make sure the backend is running.", 'error');
     return null;
   }
 }
@@ -170,14 +177,10 @@ speakModeSelect.blur();
     ? currentUser.learningLang
     : currentUser.nativeLang;
 
-  if (speakMode === "native") {
-    if (visibleLang === currentUser.learningLang) {
-      speakText(visibleText, currentUser.learningLang);
-    }
-  } else if (speakMode === "learning") {
-    if (visibleLang === currentUser.nativeLang) {
-      speakText(visibleText, currentUser.nativeLang);
-    }
+  if (speakMode === "learning") {
+    if (visibleLang === currentUser.learningLang) speakText(visibleText, currentUser.learningLang);
+  } else if (speakMode === "native") {
+    if (visibleLang === currentUser.nativeLang) speakText(visibleText, currentUser.nativeLang);
   } else if (speakMode === "both") {
     // Always speak the visible side
     speakText(visibleText, visibleLang);
@@ -224,6 +227,16 @@ async function initSmartReview() {
   loadSelectedDeck();
 }
 
+// Higher = review sooner. Cards you miss often, and cards you haven't seen for a while,
+// float to the top; cards you keep getting right sink until time brings them back.
+// ponytail: simple heuristic, swap for SM-2/FSRS intervals if users want real scheduling.
+function reviewPriority(card) {
+  const { correct = 0, incorrect = 0 } = card.stats || {};
+  const missRatio = (incorrect + 1) / (correct + 1);
+  const days = card.lastReviewed ? Math.min(30, (Date.now() - card.lastReviewed) / 86400000) : 30;
+  return missRatio * (1 + days / 2);
+}
+
 function loadSelectedDeck() {
   selectedDeck = decks.find(deck => String(deck.id) === reviewDeckSelect.value);
   const cards = selectedDeck?.cards || [];
@@ -232,12 +245,7 @@ function loadSelectedDeck() {
       if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
       return card;
     })
-    .sort((a, b) => {
-      const totalA = a.stats.correct + a.stats.incorrect || 1;
-      const totalB = b.stats.correct + b.stats.incorrect || 1;
-
-      return (a.stats.correct / totalA) - (b.stats.correct / totalB);
-    })
+    .sort((a, b) => reviewPriority(b) - reviewPriority(a))
     .slice(0, 20);
 
   if (reviewCards.length === 0) {
@@ -262,7 +270,7 @@ function flipCard() {
 
 function showCard() {
   if (!reviewCards.length) {
-    questionEl.textContent = "🎉 All done!";
+    questionEl.textContent = "All done for now!";
     answerEl.textContent = "";
     progressEl.textContent = "";
     return;
@@ -294,6 +302,7 @@ correctBtn.addEventListener("click", () => {
   const currentCard = reviewCards[currentIndex];
 
   currentCard.stats.correct++;
+  currentCard.lastReviewed = Date.now();
   saveSelectedDeck();
 
   reviewCards.splice(currentIndex, 1);
@@ -309,6 +318,7 @@ incorrectBtn.addEventListener("click", () => {
   const currentCard = reviewCards[currentIndex];
 
   currentCard.stats.incorrect++;
+  currentCard.lastReviewed = Date.now();
   saveSelectedDeck();
 
   reviewCards.push(reviewCards.splice(currentIndex, 1)[0]);
@@ -318,10 +328,12 @@ incorrectBtn.addEventListener("click", () => {
 
 
 nextBtn.addEventListener("click", () => {
+  if (!reviewCards.length) return;
   currentIndex = (currentIndex + 1) % reviewCards.length;
   showCard();
 });
 prevBtn.addEventListener("click", () => {
+  if (!reviewCards.length) return;
   currentIndex = (currentIndex - 1 + reviewCards.length) % reviewCards.length;
   showCard();
 });
