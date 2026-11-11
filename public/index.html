@@ -514,30 +514,49 @@
     </div>
 
     <div id="storyReviewMode" class="story-mode" style="display: none;">
-      <div class="section-head">
-        <button id="backToInput" class="ghost">Back to stories</button>
+      <div class="reader-head">
+        <button id="backToInput" class="ghost small" type="button">← Stories</button>
+        <div class="reader-titles">
+          <h2 id="readerTitle">Story</h2>
+          <p class="meta" id="readerMeta"></p>
+        </div>
       </div>
 
       <div class="story-review-layout">
-        <div class="story-review-container">
+        <article class="reader-card">
+          <p class="reader-tip meta">Tap any word to see what it means.</p>
           <div class="story-display" id="storyDisplay"></div>
-        </div>
 
-        <aside class="story-flashcards-panel">
-          <div id="missingTranslations" class="missing-panel" hidden></div>
-          <h3>Your words</h3>
-          <div id="selectedTokens"></div>
-          <button id="createDeckFromStoryTokens">Create flashcard deck</button>
+          <div class="audio-bar" id="audioBar">
+            <button id="audioPrev" class="audio-icon" type="button" aria-label="Previous sentence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button id="audioPlay" class="audio-play" type="button" aria-label="Play"></button>
+            <button id="audioNext" class="audio-icon" type="button" aria-label="Next sentence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <div class="audio-progress">
+              <span id="audioStatus" class="audio-status"></span>
+              <span class="audio-track"><span id="audioFill"></span></span>
+            </div>
+            <button id="audioSpeed" class="audio-speed" type="button" aria-label="Reading speed">0.8×</button>
+            <button id="wordsOpen" class="audio-words" type="button" aria-expanded="false" aria-controls="wordsPanel">Words <span id="wordsCountMobile">0</span></button>
+          </div>
+        </article>
+
+        <aside class="words-panel" id="wordsPanel" aria-label="Words to learn">
+          <div class="words-head">
+            <h3>Words to learn <span id="wordsCount" class="words-count">0</span></h3>
+            <button id="wordsClose" class="wl-icon words-close" type="button" aria-label="Close">✕</button>
+          </div>
+          <p class="meta" id="wordsHint">Tap a word in the story, then “Save word”. They’ll collect here so you can turn them into flashcards.</p>
+          <p class="meta untranslated-note" id="untranslatedNote" hidden></p>
+          <ul id="wordsList" class="words-list"></ul>
+          <button id="createDeckFromStoryTokens" type="button" disabled>Add words to a deck</button>
         </aside>
       </div>
+
+      <div id="wordPopup" class="word-popup" role="dialog" aria-label="Word" hidden></div>
     </div>
 
     <p class="data-credit meta">Word translations include data from <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> (CC BY-SA 4.0, via <a href="https://kaikki.org/" target="_blank" rel="noopener">kaikki.org</a>) and <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener">FrequencyWords</a>, plus translations shared by learners.</p>
 
-    <div id="translationTooltip" class="translation-tooltip" style="display: none;">
-      <span id="tooltipWord"></span>
-      <div class="tooltip-arrow"></div>
-    </div>
   </section>
 
   </main>

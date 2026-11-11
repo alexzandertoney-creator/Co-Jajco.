@@ -27,28 +27,23 @@ export function speakText(text, langCode = 'en', rate = 0.9) {
 
   const utterance = new SpeechSynthesisUtterance(text);
   const lang = langMap[langCode] || 'en-US';
-
-  const voices = speechSynthesis.getVoices();
-
-  let voice = voices.find(v => v.lang === lang);
-
-  // Fallback to partial match
-  if (!voice) {
-    const baseLang = lang.split('-')[0];
-    voice = voices.find(v => v.lang.startsWith(baseLang));
-  }
-
-  if (voice) {
-    utterance.voice = voice;
-  } else {
-    console.warn('No voice found for:', lang);
-  }
-
+  const voice = pickVoice(langCode);
+  if (voice) utterance.voice = voice;
   utterance.lang = lang;
   utterance.rate = rate;
 
   speechSynthesis.speak(utterance);
 }
+
+/** Best installed voice for a language code (exact locale first, then same language). */
+export function pickVoice(langCode) {
+  if (!window.speechSynthesis) return null;
+  const lang = langMap[langCode] || 'en-US';
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0])) || null;
+}
+
+export const speechLang = (langCode) => langMap[langCode] || 'en-US';
 
 /**
  * Stop speaking

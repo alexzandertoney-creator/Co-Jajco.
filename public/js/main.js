@@ -8,7 +8,8 @@ import * as UI from './ui.js';
 import { setKeyboardContext, setupKeyboardListener, handleFlashcardsKeys } from './keyboard.js';
 import { initTTS, setSpeakMode, speakText } from './tts.js';
 import { MODES, KEYBOARD_CONTEXTS, SPEAK_MODES } from './constants.js';
-import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, looksLikeStoryJson, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
+import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, looksLikeStoryJson } from '../storyPromptService.js';
+import { openReader, closeReader, clearSavedWords } from './reader.js';
 import * as StoryAnalyzer from '../storyAnalyzer.js';
 import * as PublicLibrary from './publicLibrary.js';
 
@@ -447,7 +448,6 @@ function setupStoryAnalyzerListeners() {
   const clearStoryArchiveBtn = document.getElementById('clearStoryArchive');
   const storyArchiveList = document.getElementById('storyArchiveList');
   const storyArchiveEmpty = document.getElementById('storyArchiveEmpty');
-  const createDeckFromStoryTokensBtn = document.getElementById('createDeckFromStoryTokens');
   const promptOutput = document.getElementById('promptOutput');
   const storyInput = document.getElementById('storyInput');
   let currentStoryData = null;
@@ -593,6 +593,7 @@ function setupStoryAnalyzerListeners() {
   };
 
   const showStoryInputMode = () => {
+    closeReader();
     if (storyInputMode && storyReviewMode) {
       storyInputMode.style.display = 'block';
       storyReviewMode.style.display = 'none';
@@ -614,71 +615,6 @@ function setupStoryAnalyzerListeners() {
       return null;
     }
 
-    window.storyTokenizer = new StoryTokenizer(data.story, data.tokens);
-    window.storyTTSPlayer = new StoryTTSPlayer(
-      window.storyTokenizer,
-      DataManager.currentUser.learningLang
-    );
-
-    let ttsContainer = document.getElementById('storyTTSContainer');
-    if (!ttsContainer) {
-      ttsContainer = document.createElement('div');
-      ttsContainer.id = 'storyTTSContainer';
-      document.querySelector('.story-review-container')?.appendChild(ttsContainer);
-    } else {
-      ttsContainer.innerHTML = ''; // Clear existing controls
-    }
-
-    let selectedContainer = document.getElementById('selectedTokens');
-    if (selectedContainer) {
-      selectedContainer.innerHTML = '';
-    }
-
-    const updateRightPanelFromSelection = () => {
-      const listEl = document.getElementById('unknownWordsList');
-      if (!listEl || !window.storyTokenizer) return;
-
-      const selected = window.storyTokenizer.getSelectedTokens();
-      listEl.innerHTML = '';
-
-      if (selected.length === 0) {
-        listEl.innerHTML = '<li class="empty-hint">Tap words in the story to collect them here.</li>';
-        return;
-      }
-
-      selected.forEach(tok => {
-        const li = document.createElement('li');
-
-        const title = document.createElement('div');
-        title.textContent = tok.text;
-        title.className = 'word';
-
-        const trans = document.createElement('div');
-        trans.textContent = tok.translation || '';
-        trans.className = 'meta';
-
-        li.appendChild(title);
-        li.appendChild(trans);
-        li.addEventListener('click', () => {
-          window.storyTokenizer.toggleToken(tok.text);
-          renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-          updateRightPanelFromSelection();
-        });
-
-        listEl.appendChild(li);
-      });
-    };
-
-    const { updatePlayBtn, updateCurrentTokenDisplay } = renderStoryTTSControls('#storyTTSContainer', window.storyTTSPlayer);
-    attachStoryTTSKeyboardShortcuts(window.storyTTSPlayer, updatePlayBtn);
-
-    renderInteractiveStory('#storyDisplay', window.storyTokenizer, (token, translation) => {
-      renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-      updateRightPanelFromSelection();
-    });
-
-    renderSelectedTokens('#selectedTokens', window.storyTokenizer, updateRightPanelFromSelection);
-    updateRightPanelFromSelection();
     if (shouldArchive) {
       archiveStory(data);
     }
@@ -694,9 +630,65 @@ function setupStoryAnalyzerListeners() {
       PublicLibrary.publishCurrentStory(currentStoryData, autoLevel, autoTitle);
     }
 
-    renderMissingTranslations();
     showStoryReviewMode();
+    openReader(currentStoryData, {
+      learningLang: DataManager.currentUser.learningLang,
+      nativeLang: DataManager.currentUser.nativeLang,
+      callbacks: { onTranslationAdded, onAddToDeck: addWordsToDeck },
+    });
     return data;
+  };
+
+  // A translation typed into the word popup: keep it in this story and share it.
+  const onTranslationAdded = (word, translation) => {
+    if (!currentStoryData) return;
+    const key = word.toLowerCase();
+    const has = currentStoryData.tokens.some((t) => t.text.toLowerCase() === key);
+    currentStoryData.tokens = has
+      ? currentStoryData.tokens.map((t) => (t.text.toLowerCase() === key ? { ...t, translation } : t))
+      : [...currentStoryData.tokens, { text: word, translation }];
+    DataManager.contributeTranslations([{ word, translation }]);
+    if (currentSavedStoryId) {
+      fetch(`/api/library/stories/${currentSavedStoryId}`, { method: 'PUT', headers: authJson(), body: JSON.stringify({ tokens: currentStoryData.tokens }) })
+        .then((r) => r.ok && r.json()).then((row) => { if (row) storyArchive = storyArchive.map((x) => (x.id === row.id ? row : x)); })
+        .catch(() => {});
+    }
+    toast('Translation added. Thanks for helping other learners!', 'success');
+  };
+
+  // "Add N words to a deck": an existing deck or a new one, saved in one request.
+  const addWordsToDeck = async (words) => {
+    if (!words.length) return;
+    const own = DataManager.filteredDecks.filter((d) => d.id !== 'master-vocab');
+    const NEW = '+ New deck';
+    const res = await formDialog(`Add ${words.length} word${words.length === 1 ? '' : 's'} to a deck`, [
+      { label: 'Deck', options: [NEW, ...own.map((d) => d.name)], value: NEW },
+      { label: 'Name for a new deck', value: currentStoryData?.title || 'Story words', required: false },
+    ], { confirmLabel: 'Add words' });
+    if (!res) return;
+    const [choice, newName] = res;
+    // Cards: question = meaning, answer = the word (same as every deck)
+    const cards = words.map((w) => ({
+      question: w.translation, answer: w.text,
+      ...(w.lemma ? { note: `Form of ${w.lemma}` } : {}), // "ogromną" -> base form "ogromny" on the card
+      stats: { correct: 0, incorrect: 0 },
+    }));
+    DataManager.contributeTranslations(words.map((w) => ({ word: w.text, translation: w.translation })));
+
+    let ok = false, target = null;
+    if (choice === NEW) {
+      target = await DataManager.createDeck(newName || currentStoryData?.title || 'Story words', DataManager.currentUser.learningLang, DataManager.currentUser.nativeLang, cards);
+      ok = !!target;
+    } else {
+      target = own.find((d) => d.name === choice);
+      const existing = new Set(target.cards.map((c) => c.answer.toLowerCase()));
+      const fresh = cards.filter((c) => !existing.has(c.answer.toLowerCase()));
+      ok = fresh.length ? await DataManager.setDeckCards(target.id, [...target.cards, ...fresh]) : true;
+    }
+    if (!ok) return toast('Couldn’t save the words. Try again.', 'error');
+    refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
+    clearSavedWords();
+    toast(`Added to “${target.name}”. Find them under Study.`, 'success');
   };
 
   // Plain text -> story: every word gets its translation from the shared dictionary.
@@ -738,57 +730,6 @@ function setupStoryAnalyzerListeners() {
   storyInput?.addEventListener('paste', () => setTimeout(() => {
     if (storyInput.value.trim().length > 20) analyzeCurrentStory();
   }, 0));
-
-  // ---- Words the dictionary didn't know: fill them in, save to the story and the shared dictionary ----
-  const renderMissingTranslations = () => {
-    const box = document.getElementById('missingTranslations');
-    if (!box || !currentStoryData) return;
-    const missing = currentStoryData.tokens.filter((t) => !t.translation);
-    box.replaceChildren();
-    box.hidden = !missing.length;
-    if (!missing.length) return;
-
-    const h = document.createElement('h3');
-    h.textContent = `${missing.length} word${missing.length === 1 ? '' : 's'} not in the dictionary yet`;
-    const p = document.createElement('p');
-    p.className = 'meta';
-    p.textContent = 'Add what you know. Your translations help everyone learning this language.';
-    const form = document.createElement('form');
-    form.className = 'missing-form';
-    missing.slice(0, 40).forEach((t) => {
-      const label = document.createElement('label');
-      label.className = 'missing-row';
-      const word = document.createElement('span');
-      word.textContent = t.text;
-      const input = document.createElement('input');
-      input.dataset.word = t.text;
-      input.placeholder = 'Translation';
-      input.autocomplete = 'off';
-      label.append(word, input);
-      form.appendChild(label);
-    });
-    const save = document.createElement('button');
-    save.type = 'submit';
-    save.textContent = 'Save translations';
-    form.appendChild(save);
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const filled = [...form.querySelectorAll('input')].filter((i) => i.value.trim())
-        .map((i) => ({ word: i.dataset.word, translation: i.value.trim() }));
-      if (!filled.length) return toast('Type at least one translation first.', 'error');
-      const byWord = new Map(filled.map((f) => [f.word, f.translation]));
-      const tokens = currentStoryData.tokens.map((t) => (byWord.has(t.text) ? { ...t, translation: byWord.get(t.text) } : t));
-      DataManager.contributeTranslations(filled);
-      if (currentSavedStoryId) {
-        fetch(`/api/library/stories/${currentSavedStoryId}`, { method: 'PUT', headers: authJson(), body: JSON.stringify({ tokens }) })
-          .then((r) => r.ok && r.json()).then((row) => { if (row) storyArchive = storyArchive.map((x) => (x.id === row.id ? row : x)); })
-          .catch(() => {});
-      }
-      analyzeStoryData(JSON.stringify({ title: currentStoryData.title, story: currentStoryData.story, tokens }), false);
-      toast(`Saved ${filled.length} translation${filled.length === 1 ? '' : 's'}. Thanks for helping other learners!`, 'success');
-    });
-    box.append(h, p, form);
-  };
 
   // ---- Starter stories for the current language ----
   const renderStarterStories = () => {
@@ -898,47 +839,6 @@ function setupStoryAnalyzerListeners() {
   // Upload any browser-only stories first, then show the account's list.
   migrateLocalStories().then(loadStoryArchive).then(renderStoryArchive);
 
-  createDeckFromStoryTokensBtn?.addEventListener('click', async () => {
-    if (!window.storyTokenizer) {
-      toast('No story loaded. Analyze a story first!', 'error');
-      return;
-    }
-
-    const selectedTokens = window.storyTokenizer.getSelectedTokens();
-    if (selectedTokens.length === 0) {
-      toast('No tokens selected! Click tokens in the story to add them.', 'error');
-      return;
-    }
-
-    const deckName = await promptDialog('Create flashcard deck', {
-      label: 'Deck name',
-      value: currentStoryData?.title || `Story – ${new Date().toLocaleDateString()}`,
-      confirmLabel: 'Create deck',
-      message: `${selectedTokens.length} word${selectedTokens.length === 1 ? '' : 's'} will become cards.`,
-    });
-    if (!deckName) return;
-
-    // Same convention as every deck: question = meaning, answer = word being learned.
-    const cards = selectedTokens.map(token => ({
-      question: token.translation || '',
-      answer: token.text,
-      stats: { correct: 0, incorrect: 0 }
-    }));
-
-    const newDeck = await DataManager.createDeck(
-      deckName,
-      DataManager.currentUser.learningLang,
-      DataManager.currentUser.nativeLang,
-      cards
-    );
-
-    if (newDeck) {
-      refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
-      toast(`Deck “${deckName}” created with ${selectedTokens.length} cards.`, 'success');
-    } else {
-      toast('Failed to create deck', 'error');
-    }
-  });
 }
 
 /**
@@ -1004,7 +904,8 @@ async function copyToClipboard(text, successMessage) {
 }
 
 function switchMode(mode) {
-  // Stop timers from the mode we're leaving so they can't fire into the new one.
+  // Stop timers (and story audio) from the mode we're leaving so they can't fire into the new one.
+  if (mode !== MODES.STORY_ANALYZER) closeReader();
   matchMode.reset();
   testMode.reset();
   learnMode.reset();
