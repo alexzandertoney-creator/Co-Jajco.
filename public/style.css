@@ -294,15 +294,15 @@ body:has(.sidebar) { display: grid; grid-template-columns: 240px minmax(0, 1fr);
 .brand img { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(250, 250, 246, .25); }
 
 .primary-nav { display: flex; flex-direction: column; gap: 4px; }
-.primary-nav > button, .primary-nav > a {
+.primary-nav > button, .primary-nav > a, .nav-more-group > button, .nav-more-group > a {
   display: flex; align-items: center; justify-content: flex-start; gap: 12px;
   min-height: 44px; padding: 10px 14px;
   border: 0; border-radius: 12px;
   background: transparent; color: rgba(250, 250, 246, .78);
   font-weight: 600; font-size: 1rem; text-decoration: none;
 }
-.primary-nav > button:hover, .primary-nav > a:hover { background: rgba(250, 250, 246, .08); color: var(--cream); }
-.primary-nav > [aria-current="page"], .primary-nav > [aria-current="page"]:hover {
+.primary-nav > button:hover, .primary-nav > a:hover, .nav-more-group > button:hover, .nav-more-group > a:hover { background: rgba(250, 250, 246, .08); color: var(--cream); }
+.primary-nav > [aria-current="page"], .primary-nav > [aria-current="page"]:hover, .nav-more-group > [aria-current="page"], .nav-more-group > [aria-current="page"]:hover {
   background: rgba(250, 250, 246, .12); color: var(--cream);
   box-shadow: inset 3px 0 0 var(--yolk);
 }
@@ -1259,7 +1259,6 @@ button.wp-save:disabled { opacity: .45; }
   body[data-group="profile"] .profile-chip { box-shadow: none; }
   body[data-group="profile"] .profile-chip .avatar { box-shadow: 0 0 0 2px var(--pine), 0 0 0 4px var(--birch); }
   .sidebar .forest-art { display: none; }
-  .primary-nav [data-mode="publicLibrary"], .primary-nav a[href$="#publicLibrary"], .primary-nav [data-mode="grammar"] { display: none; }
   .main { grid-column: 1 / -1; padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
 
   .primary-nav {
@@ -1397,6 +1396,10 @@ button.wp-save:disabled { opacity: .45; }
 .cards-head h3 { margin: 0; white-space: nowrap; }
 .cards-head h3 .meta { font: 600 .9rem var(--font-body); }
 #cardSearch { max-width: 220px; min-height: 38px; padding: 6px 12px; }
+@media (max-width: 600px) {
+  .cards-head { flex-wrap: wrap; }
+  #cardSearch { flex: 1 1 100%; max-width: none; }
+}
 #cardList li { padding: 12px 6px; border-radius: 8px; }
 #cardList li:hover { background: var(--surface); }
 #cardList li[hidden] { display: none; }
@@ -1616,3 +1619,29 @@ button.wp-save:disabled { opacity: .45; }
 .gg-options button.incorrect, .gg-options button.incorrect:disabled { background: var(--rust-soft); border-color: var(--rust); color: var(--rust); opacity: 1; }
 .gg-options button:disabled:not(.correct):not(.incorrect) { opacity: .5; }
 .gg-quiz { width: 100%; max-width: none; }
+
+/* ---------- "More" on phones: Decks, Grammar, Library live in a small menu ---------- */
+.primary-nav > .nav-more { display: none; }
+.nav-more-group { display: contents; } /* desktop: the items sit in the sidebar like any other */
+.primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href$="#storyAnalyzer"] { order: 2; }
+.nav-more-group > [data-mode="deckEditor"], .nav-more-group > a[href$="#deckEditor"] { order: 1; }
+.nav-more-group > :not([data-mode="deckEditor"]):not(a[href$="#deckEditor"]) { order: 3; }
+@media (max-width: 760px) {
+  .primary-nav > .nav-more { display: flex; order: 4; }
+  .primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href$="#storyAnalyzer"] { order: 0; }
+  .nav-more-group {
+    display: none; position: fixed; right: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 101;
+    flex-direction: column; gap: 2px; min-width: 200px; padding: 6px;
+    background: var(--sidebar); border-radius: var(--r-md);
+    box-shadow: 0 0 0 1px rgba(250, 250, 246, .08), 0 18px 40px -10px rgba(0, 0, 0, .55);
+    animation: list-in .14s var(--ease);
+  }
+  .primary-nav.more-open .nav-more-group { display: flex; }
+  .nav-more-group > button, .nav-more-group > a {
+    order: 0 !important; flex-direction: row; justify-content: flex-start; gap: 12px;
+    min-height: 48px; padding: 10px 14px; font-size: .95rem;
+  }
+  .nav-more-group > [aria-current="page"], .nav-more-group > [aria-current="page"]:hover { background: rgba(250, 250, 246, .08); color: var(--yolk); box-shadow: none; }
+  .primary-nav.more-open .nav-more,
+  .primary-nav:has(.nav-more-group [aria-current="page"]) .nav-more { color: var(--yolk); }
+}
