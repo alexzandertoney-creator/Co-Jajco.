@@ -45,25 +45,39 @@ const normalize = (s) => String(s ?? '').toLowerCase().normalize('NFC')
   .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').trim();
 
 const seeding = new Map();
-// Loads (or upgrades) the bundled seed for a pair the first time it is needed.
-// Re-running is harmless: duplicate pairs are skipped.
+const seeded = new Set();
+const CHUNK = 5000;
+// A big seed doesn't fit in one serverless request, so each request inserts for at most
+// this long, saves how far it got, and the next request continues. Entries are stored
+// most-frequent first, so a half-loaded dictionary already covers the common words.
+const SEED_BUDGET_MS = Number(process.env.DICT_SEED_BUDGET_MS) || 4000;
+
+// Loads (or upgrades) the bundled seed for a pair. Re-running is harmless: duplicate
+// pairs are skipped. Progress is kept in dictionary_seeds under "<pair>#<version>".
 function ensureSeeded(learningLang, nativeLang) {
   const pair = `${learningLang}:${nativeLang}`;
   const load = SEEDS[pair];
-  if (!load) return Promise.resolve();
+  if (!load || seeded.has(pair)) return Promise.resolve();
   if (!seeding.has(pair)) {
     seeding.set(pair, (async () => {
       const seed = load(); // { version, entries: [[word, translation, lemma?], ...] }
-      const done = await db.query('SELECT version FROM dictionary_seeds WHERE pair = $1', [pair]);
-      if (done.rows[0]?.version >= seed.version) return;
-      const CHUNK = 5000;
-      for (let i = 0; i < seed.entries.length; i += CHUNK) {
-        const rows = seed.entries.slice(i, i + CHUNK).map(([w, t, l]) => ({ w, t, l: l || null }));
+      const progressKey = `${pair}#${seed.version}`;
+      const rows = (await db.query('SELECT pair, version FROM dictionary_seeds WHERE pair = ANY($1)', [[pair, progressKey]])).rows;
+      if (rows.find((r) => r.pair === pair)?.version >= seed.version) { seeded.add(pair); return; }
+      const started = Date.now();
+      for (let c = rows.find((r) => r.pair === progressKey)?.version ?? 0; c * CHUNK < seed.entries.length; c++) {
+        if (Date.now() - started > SEED_BUDGET_MS) return; // the next request carries on
+        const chunk = seed.entries.slice(c * CHUNK, (c + 1) * CHUNK).map(([w, t, l]) => ({ w, t, l: l || null }));
         await db.query(
           `INSERT INTO dictionary_entries (learning_lang, native_lang, word, translation, lemma, source)
            SELECT $1, $2, x.w, x.t, x.l, 'seed' FROM json_to_recordset($3::json) AS x(w text, t text, l text)
            ON CONFLICT (learning_lang, native_lang, word, translation) DO NOTHING`,
-          [learningLang, nativeLang, JSON.stringify(rows)]
+          [learningLang, nativeLang, JSON.stringify(chunk)]
+        );
+        await db.query(
+          `INSERT INTO dictionary_seeds (pair, version) VALUES ($1, $2)
+           ON CONFLICT (pair) DO UPDATE SET version = GREATEST(dictionary_seeds.version, EXCLUDED.version)`,
+          [progressKey, c + 1]
         );
       }
       await db.query(
@@ -71,7 +85,9 @@ function ensureSeeded(learningLang, nativeLang) {
          ON CONFLICT (pair) DO UPDATE SET version = EXCLUDED.version`,
         [pair, seed.version]
       );
-    })().catch((err) => { seeding.delete(pair); throw err; }));
+      await db.query('DELETE FROM dictionary_seeds WHERE pair = $1', [progressKey]);
+      seeded.add(pair);
+    })().finally(() => seeding.delete(pair)));
   }
   return seeding.get(pair);
 }
@@ -85,15 +101,49 @@ async function lookup(learningLang, nativeLang, words) {
   await ensureSeeded(learningLang, nativeLang);
   const wanted = [...new Set(words.map(normalize).filter(Boolean))].slice(0, 3000);
   if (!wanted.length) return {};
+  const found = await best(learningLang, nativeLang, wanted);
+  // Not found? Try the base form by its ending ("dialektami" -> "dialekt").
+  const guesses = new Map(); // candidate -> words it may explain
+  for (const w of wanted) {
+    if (found[w]) continue;
+    for (const c of baseForms(learningLang, w)) guesses.set(c, [...(guesses.get(c) || []), w]);
+  }
+  if (guesses.size) {
+    const base = await best(learningLang, nativeLang, [...guesses.keys()]);
+    for (const [c, ws] of guesses) {
+      if (!base[c]) continue;
+      for (const w of ws) found[w] ??= { translation: base[c].translation, lemma: base[c].lemma || c };
+    }
+  }
+  return found;
+}
+
+async function best(learningLang, nativeLang, words) {
   const result = await db.query(
     `SELECT DISTINCT ON (word) word, translation, lemma
        FROM dictionary_entries
       WHERE learning_lang = $1 AND native_lang = $2 AND word = ANY($3::text[])
       ORDER BY word, uses DESC, (source = 'user') DESC, id`,
-    [learningLang, nativeLang, wanted]
+    [learningLang, nativeLang, words]
   );
   return Object.fromEntries(result.rows.map((r) => [r.word, { translation: r.translation, lemma: r.lemma }]));
 }
+
+// Polish case/adjective endings -> base form, tried in order (first hit wins).
+// ponytail: plain suffix rules, not a real morphological analyser; checked on real texts
+// (Wikipedia, news) to be right on the words they rescue. Swap in Morfeusz if it ever matters.
+const ENDINGS = {
+  pl: [
+    ...['ymi', 'imi', 'ego', 'emu', 'ych', 'ich', 'ej', 'ym', 'im', 'ą', 'e', 'a'].flatMap((e) => [[e, 'y'], [e, 'i'], [e, '']]),
+    ['ę', 'a'], ['ii', 'ia'], ['ami', ''], ['ami', 'a'], ['em', 'e'], ['em', ''], ['y', 'a'], ['i', 'a'], ['ie', 'a'],
+    ['owi', ''], ['u', ''], ['ach', ''], ['ach', 'a'], ['om', ''], ['ów', ''], ['ce', 'ka'], ['dze', 'ga'],
+  ],
+};
+const baseForms = (lang, w) => (ENDINGS[lang] || [])
+  .filter(([e]) => w.length > e.length + 2 && w.endsWith(e))
+  .map(([e, r]) => w.slice(0, -e.length) + r)
+  .filter((c) => c !== w)
+  .slice(0, 12);
 
 // Rejects junk: empty, very long, links, or no letters at all.
 const looksValid = (word, translation) =>
@@ -160,4 +210,4 @@ async function search(learningLang, nativeLang, q) {
     .map(({ word, translation, lemma }) => ({ word, translation, lemma }));
 }
 
-module.exports = { lookup, contribute, search, normalize };
+module.exports = { lookup, contribute, search, normalize, baseForms };

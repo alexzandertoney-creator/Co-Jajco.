@@ -4,6 +4,7 @@
 
 import { speakText, pickVoice, speechLang, hasVoiceFor } from './tts.js';
 import { lookupWords } from './data.js';
+import { showGrammar } from './grammar.js';
 import { langName } from './constants.js';
 
 const $ = (id) => document.getElementById(id);
@@ -53,15 +54,17 @@ function splitSentences(text) {
   return text.match(/[^.!?…]+[.!?…]*["»”’)]*\s*|.+$/gs) || [text];
 }
 
+// Numbers ("1999", footnote marks like [6]) aren't words to translate.
+const HAS_LETTER = /\p{L}/u;
 function splitWords(text) {
   const seg = segmenter('word');
-  if (seg) return [...seg.segment(text)].map((s) => ({ text: s.segment, word: !!s.isWordLike, index: s.index }));
+  if (seg) return [...seg.segment(text)].map((s) => ({ text: s.segment, word: !!s.isWordLike && HAS_LETTER.test(s.segment), index: s.index }));
   const out = [];
   const re = /[\p{L}\p{M}\p{N}]+(?:['’-][\p{L}\p{M}]+)*/gu;
   let last = 0, m;
   while ((m = re.exec(text))) {
     if (m.index > last) out.push({ text: text.slice(last, m.index), word: false, index: last });
-    out.push({ text: m[0], word: true, index: m.index });
+    out.push({ text: m[0], word: HAS_LETTER.test(m[0]), index: m.index });
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last), word: false, index: last });
@@ -205,6 +208,16 @@ function openPopup(wordEl) {
     hint.textContent = 'Not in the dictionary yet. Know it? Add it for everyone.';
     pop.append(hint, form);
   }
+
+  // Gender / case / conjugation, loaded after the popup is shown (Polish only).
+  const gram = document.createElement('div');
+  gram.className = 'wp-grammar';
+  gram.hidden = true;
+  pop.appendChild(gram);
+  showGrammar(gram, wordEl.textContent, {
+    lang: state.lang, hint: lemma,
+    onReady: () => { if (state.activeWord === wordEl && !pop.hidden) placePopup(pop, wordEl); },
+  });
 
   const saved = state.saved.has(key);
   const save = document.createElement('button');

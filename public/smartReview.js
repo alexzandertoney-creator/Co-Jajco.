@@ -8,6 +8,7 @@ import { speakText } from './js/tts.js';
 import { loadProfile, recordAnswer } from './js/profile.js';
 import { renderIdentity } from './js/home.js';
 import { mascot } from './js/art.js';
+import { showCardGrammar } from './js/grammar.js';
 
 const NEW_PER_SESSION = 10;
 const ALL = 'all';
@@ -106,6 +107,7 @@ function showCard() {
     answerEl.textContent = frontIsQuestion ? card.answer : card.question;
     noteEl.textContent = card.note || '';
     noteEl.hidden = !card.note;
+    showCardGrammar(cardEl, card, frontIsQuestion, user?.learningLang);
     requestAnimationFrame(() => cardEl.classList.remove('no-transition'));
     autoSpeak();
   });

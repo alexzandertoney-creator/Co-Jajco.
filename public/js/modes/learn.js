@@ -5,6 +5,7 @@ import { shuffleArray, gradeAnswer } from '../utils.js';
 import { learnQuestion, learnAnswer, learnFeedback, renderResults } from '../ui.js';
 import { updateCardStatsFromCard } from '../data.js';
 import { speakText, hasVoiceFor } from '../tts.js';
+import { showGrammar } from '../grammar.js';
 
 // Letters that are awkward to type on an English keyboard, per learning language.
 const SPECIAL_LETTERS = {
@@ -70,6 +71,8 @@ export class LearnMode {
     else learnQuestion.textContent = this.promptOf(card);
     learnFeedback.textContent = '';
     learnFeedback.className = '';
+    $('learnGrammar').hidden = true;
+    $('learnGrammar').replaceChildren();
     learnAnswer.value = '';
     learnAnswer.disabled = false;
     $('submitLearn').textContent = 'Check';
@@ -163,6 +166,8 @@ export class LearnMode {
       note.textContent = card.note;
       learnFeedback.append(document.createElement('br'), note);
     }
+    // A miss is the moment to learn the word's grammar (correct answers move on by themselves).
+    if (kind !== 'correct' && card) showGrammar($('learnGrammar'), card.answer, { lang: this.deck?.learningLang });
     learnAnswer.disabled = true;
     $('learnSkip').hidden = true;
     $('submitLearn').textContent = 'Continue';

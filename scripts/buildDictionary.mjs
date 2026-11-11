@@ -17,9 +17,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LANGS = { pl: 'Polish', es: 'Spanish', fr: 'French', it: 'Italian' };
-const TOP_WORDS = 20000;     // most frequent words to cover
-const VERSION = 1;           // bump to make servers re-seed (new pairs are added, nothing is removed)
-const SKIP_POS = new Set(['name', 'character', 'symbol', 'prefix', 'suffix', 'romanization', 'letter', 'abbrev', 'infix', 'interfix', 'phrase']);
+const TOP_WORDS = 100000;    // most frequent word forms to cover (plus every Wiktionary base word)
+const VERSION = 2;           // bump to make servers re-seed (new pairs are added, nothing is removed)
+const SKIP_POS = new Set(['character', 'symbol', 'prefix', 'suffix', 'romanization', 'letter', 'abbrev', 'infix', 'interfix', 'phrase']);
 
 const code = process.argv[2];
 if (import.meta.url === `file://${process.argv[1]}` && !LANGS[code]) { console.error('Usage: node scripts/buildDictionary.mjs pl|es|fr|it'); process.exit(1); }
@@ -46,7 +46,7 @@ async function lines(url) {
 // 1. Most frequent words
 const freq = [];
 const freqSeen = new Set();
-for await (const line of await lines(`https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/${code}/${code}_50k.txt`)) {
+for await (const line of await lines(`https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/${code}/${code}_full.txt`)) {
   const w = norm(line.split(' ')[0]);
   if (w && /\p{L}/u.test(w) && !freqSeen.has(w)) { freqSeen.add(w); freq.push(w); }
   if (freq.length >= TOP_WORDS) break;
@@ -56,7 +56,8 @@ console.error(`${code}: ${freq.length} frequent words`);
 
 // 2. Stream Wiktionary: glosses for lemmas, and form -> lemma links
 const lemmaGloss = new Map();   // lemma -> gloss
-const formOf = new Map();       // form -> lemma
+const formOf = new Map();       // form -> [lemmas]
+const addForm = (form, lemma) => { const l = formOf.get(form) || []; if (!l.includes(lemma)) formOf.set(form, [...l, lemma]); };
 let n = 0;
 for await (const line of await lines(`https://kaikki.org/dictionary/${LANGS[code]}/kaikki.org-dictionary-${LANGS[code]}.jsonl`)) {
   if (++n % 100000 === 0) console.error(`  ${n} entries…`);
@@ -68,8 +69,10 @@ for await (const line of await lines(`https://kaikki.org/dictionary/${LANGS[code
   for (const s of e.senses || []) {
     if (s.form_of?.length) {
       // "kota: genitive singular of kot"
-      const lemma = norm(s.form_of[0].word);
-      if (lemma && lemma !== word && wanted.has(word) && !formOf.has(word)) formOf.set(word, lemma);
+      for (const f of s.form_of) {
+        const lemma = norm(f.word);
+        if (lemma && lemma !== word && wanted.has(word)) addForm(word, lemma);
+      }
       continue;
     }
     if (s.tags?.includes('form-of')) continue;
@@ -80,7 +83,7 @@ for await (const line of await lines(`https://kaikki.org/dictionary/${LANGS[code
   // Inflection tables listed on the lemma's own entry
   for (const f of e.forms || []) {
     const form = norm(f.form);
-    if (form && form !== word && wanted.has(form) && !formOf.has(form) && !(f.tags || []).includes('table-tags')) formOf.set(form, word);
+    if (form && form !== word && wanted.has(form) && !(f.tags || []).includes('table-tags')) addForm(form, word);
   }
 }
 console.error(`${code}: ${lemmaGloss.size} lemma glosses, ${formOf.size} form links`);
@@ -106,13 +109,17 @@ for (const set of recommendedVocabSets) {
 if (code === 'es') {
   for (const c of JSON.parse(fs.readFileSync(path.join(ROOT, 'public/vocab/spanish_words.json'), 'utf8'))) add(c.question, c.answer);
 }
+const lemmaFor = (w) => (formOf.get(w) || []).find((l) => lemmaGloss.has(l));
 for (const w of freq) {
   if (lemmaGloss.has(w)) add(w, lemmaGloss.get(w));
-  else if (formOf.has(w) && lemmaGloss.has(formOf.get(w))) add(w, lemmaGloss.get(formOf.get(w)), formOf.get(w));
+  else if (lemmaFor(w)) add(w, lemmaGloss.get(lemmaFor(w)), lemmaFor(w));
 }
+// Every other single-word base form, so the server's ending rules (dictionary.service.js)
+// can find rarer words from their inflected forms.
+for (const [w, g] of lemmaGloss) if (!w.includes(' ')) add(w, g);
 
 const out = path.join(ROOT, 'src/data/dictionary', `${code}-en.json`);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify({ version: VERSION, source: 'Wiktionary (CC BY-SA 4.0) via kaikki.org; FrequencyWords (CC BY-SA 4.0); Co? Jajco. starter decks', entries }));
-const covered = freq.filter((w) => lemmaGloss.has(w) || (formOf.has(w) && lemmaGloss.has(formOf.get(w)))).length;
+const covered = freq.filter((w) => lemmaGloss.has(w) || lemmaFor(w)).length;
 console.error(`${code}: wrote ${entries.length} entries (${(fs.statSync(out).size / 1e6).toFixed(1)} MB); ${covered}/${freq.length} frequent words covered`);
