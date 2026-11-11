@@ -153,13 +153,14 @@ export function grammarSummary(info, { onOpen, onClose } = {}) {
  * Fills `container` with the grammar summary for a Polish word (no-op for other languages
  * or words without data). Returns the info, or null.
  */
-export async function showGrammar(container, word, { lang = 'pl', hint, onOpen, onClose, onReady } = {}) {
+export async function showGrammar(container, word, { lang = 'pl', hint, fallback, onOpen, onClose, onReady } = {}) {
   if (!container) return null;
   container.replaceChildren();
   container.hidden = true;
   if (lang !== 'pl' || !word) return null;
   const token = (container.dataset.gramToken = String(Math.random()));
-  const info = await grammarFor(word, hint).catch(() => null);
+  // `fallback`: the card's other side, for decks stored the other way round.
+  const info = (await grammarFor(word, hint).catch(() => null)) || (fallback ? await grammarFor(fallback).catch(() => null) : null);
   if (!info || container.dataset.gramToken !== token) return null;
   container.appendChild(grammarSummary(info, { onOpen, onClose }));
   container.hidden = false;
@@ -366,20 +367,32 @@ export function openGrammarSheet(info, startTab, { onClose } = {}) {
   if (!dlg.open) dlg.showModal();
 }
 
-/** Flashcards / Review: grammar for the card's Polish word, on whichever side shows it. */
-export function showCardGrammar(cardEl, cardData, frontIsQuestion, lang) {
+/**
+ * Flashcards / Review: grammar under the card's Polish word, on whichever side shows it.
+ * By convention the answer is the Polish word, but imported decks are sometimes the other
+ * way round, so the question is tried too.
+ */
+export async function showCardGrammar(cardEl, cardData, frontIsQuestion, lang) {
   const sides = [cardEl?.querySelector('.card-front'), cardEl?.querySelector('.card-back')];
   if (!sides[0] || !sides[1]) return;
-  const target = frontIsQuestion ? sides[1] : sides[0]; // question = meaning, answer = the Polish word
   for (const side of sides) {
     let box = side.querySelector('.card-grammar');
     if (!box) {
       box = el('div', 'card-grammar');
-      box.hidden = true;
       box.addEventListener('click', (e) => e.stopPropagation());
       side.insertBefore(box, side.querySelector('.speak'));
     }
-    if (side !== target) { box.replaceChildren(); box.hidden = true; delete box.dataset.gramToken; }
+    box.replaceChildren();
+    box.hidden = true;
   }
-  showGrammar(target.querySelector('.card-grammar'), cardData?.answer, { lang });
+  if (lang !== 'pl' || !cardData) return;
+  const token = (cardEl.dataset.gramToken = String(Math.random()));
+  let onAnswer = true;
+  let info = await grammarFor(cardData.answer).catch(() => null);
+  if (!info && cardData.question) { onAnswer = false; info = await grammarFor(cardData.question).catch(() => null); }
+  if (!info || cardEl.dataset.gramToken !== token) return;
+  // The answer is on the back when the question is on the front, and vice versa.
+  const box = sides[onAnswer === frontIsQuestion ? 1 : 0].querySelector('.card-grammar');
+  box.appendChild(grammarSummary(info));
+  box.hidden = false;
 }

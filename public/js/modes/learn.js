@@ -167,7 +167,7 @@ export class LearnMode {
       learnFeedback.append(document.createElement('br'), note);
     }
     // A miss is the moment to learn the word's grammar (correct answers move on by themselves).
-    if (kind !== 'correct' && card) showGrammar($('learnGrammar'), card.answer, { lang: this.deck?.learningLang });
+    if (kind !== 'correct' && card) showGrammar($('learnGrammar'), card.answer, { lang: this.deck?.learningLang, fallback: card.question });
     learnAnswer.disabled = true;
     $('learnSkip').hidden = true;
     $('submitLearn').textContent = 'Continue';

@@ -87,6 +87,7 @@ export class TestMode {
     // grammar sheet pauses the round until it's closed.
     if (!isCorrect) showGrammar($('testGrammar'), card.answer, {
       lang: this.deck?.learningLang,
+      fallback: card.question,
       onOpen: () => clearTimeout(this.nextTimer),
       onClose: () => this.next(),
     });
