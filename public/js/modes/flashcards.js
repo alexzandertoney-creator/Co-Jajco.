@@ -3,6 +3,7 @@
 import { shuffleArray } from '../utils.js';
 import { autoSpeakCard, speakText } from '../tts.js';
 import { card, questionEl, answerEl } from '../ui.js';
+import { showCardGrammar } from '../grammar.js';
 
 export class FlashcardsMode {
   constructor() {
@@ -43,6 +44,7 @@ export class FlashcardsMode {
         answerEl.textContent = currentCard.question;
       }
       showNote(currentCard);
+      showCardGrammar(card, currentCard, this.frontIsQuestion, learningLang);
 
       requestAnimationFrame(() => {
         card.classList.remove('no-transition');

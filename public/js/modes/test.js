@@ -4,6 +4,7 @@
 import { shuffleArray } from '../utils.js';
 import { testQuestion, testOptions, testFeedback, testScore, renderResults } from '../ui.js';
 import { updateCardStatsFromCard } from '../data.js';
+import { showGrammar } from '../grammar.js';
 
 const ROUND_SIZE = 10;
 const $ = (id) => document.getElementById(id);
@@ -50,6 +51,8 @@ export class TestMode {
     testQuestion.textContent = card.question;
     testFeedback.textContent = '';
     testFeedback.className = '';
+    $('testGrammar').hidden = true;
+    $('testGrammar').replaceChildren();
     testOptions.replaceChildren();
     options.forEach((opt, i) => {
       const btn = document.createElement('button');
@@ -80,10 +83,20 @@ export class TestMode {
     updateCardStatsFromCard(card, isCorrect);
     this.updateProgress();
 
-    this.nextTimer = setTimeout(() => this.next(), isCorrect ? 900 : 1800);
+    // A miss shows the word's grammar and waits a little longer; opening the
+    // grammar sheet pauses the round until it's closed.
+    if (!isCorrect) showGrammar($('testGrammar'), card.answer, {
+      lang: this.deck?.learningLang,
+      onOpen: () => clearTimeout(this.nextTimer),
+      onClose: () => this.next(),
+    });
+    this.nextTimer = setTimeout(() => this.next(), isCorrect ? 900 : 3200);
   }
 
   next() {
+    clearTimeout(this.nextTimer);
+    if (!this.answered) return;
+    this.answered = false;
     this.index++;
     if (this.index >= this.queue.length) return this.finish();
     this.showQuestion();

@@ -4,6 +4,7 @@
 
 import { speakText, pickVoice, speechLang, hasVoiceFor } from './tts.js';
 import { lookupWords } from './data.js';
+import { showGrammar } from './grammar.js';
 import { langName } from './constants.js';
 
 const $ = (id) => document.getElementById(id);
@@ -207,6 +208,16 @@ function openPopup(wordEl) {
     hint.textContent = 'Not in the dictionary yet. Know it? Add it for everyone.';
     pop.append(hint, form);
   }
+
+  // Gender / case / conjugation, loaded after the popup is shown (Polish only).
+  const gram = document.createElement('div');
+  gram.className = 'wp-grammar';
+  gram.hidden = true;
+  pop.appendChild(gram);
+  showGrammar(gram, wordEl.textContent, {
+    lang: state.lang, hint: lemma,
+    onReady: () => { if (state.activeWord === wordEl && !pop.hidden) placePopup(pop, wordEl); },
+  });
 
   const saved = state.saved.has(key);
   const save = document.createElement('button');

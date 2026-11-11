@@ -27,6 +27,7 @@
   --sidebar: var(--pine);
   --link: var(--pine);
   --field: var(--cream);
+  --g-m: #2f6f9a; --g-f: #b5472e; --g-n: #3d7a4c; --g-v: #8a5a1c;
   --heat1: #cfe1c8; --heat2: #94bf88; --heat3: #4e8a52; --heat4: var(--pine);
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2324402e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --link-hover: var(--pine-hover);
@@ -70,6 +71,7 @@
   --sidebar: #16211a;
   --link: #8cc9a2;
   --field: #242e27;
+  --g-m: #7fb8de; --g-f: #f09b84; --g-n: #8fcf9c; --g-v: #e6b86a;
   --heat1: #24432f; --heat2: #2f6b42; --heat3: #4f9b67; --heat4: #8cc9a2;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ebe5d8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --link-hover: #a9dcbb;
@@ -102,6 +104,7 @@
   --sidebar: #16211a;
   --link: #8cc9a2;
   --field: #242e27;
+  --g-m: #7fb8de; --g-f: #f09b84; --g-n: #8fcf9c; --g-v: #e6b86a;
   --heat1: #24432f; --heat2: #2f6b42; --heat3: #4f9b67; --heat4: #8cc9a2;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ebe5d8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --link-hover: #a9dcbb;
@@ -1462,4 +1465,84 @@ button.wp-save:disabled { opacity: .45; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .word-popup, :root:not([data-theme="light"]) .toast { box-shadow: 0 0 0 1px var(--line-strong), 0 18px 40px -10px rgba(0, 0, 0, .7); }
   :root:not([data-theme="light"]) .patch.locked { opacity: .4; }
+}
+
+/* ---------- Grammar help (js/grammar.js) ---------- */
+.gram-badge {
+  display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 6px;
+  border-radius: 6px; font-size: .72rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--g, var(--bark)); background: color-mix(in srgb, var(--g, var(--bark)) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--g, var(--bark)) 35%, transparent);
+  vertical-align: 1px;
+}
+.g-m { --g: var(--g-m); } .g-f { --g: var(--g-f); } .g-n { --g: var(--g-n); } .g-v, .g-a, .g-pl { --g: var(--g-v); }
+.gram-summary { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.gram-summary p { margin: 0; }
+.gram-line { font-size: .85rem; font-weight: 600; color: var(--bark); }
+.gram-form { font-size: .8rem; color: var(--bark-soft); }
+.gram-form b { color: var(--bark); }
+.gram-open { align-self: flex-start; margin: 2px 0 0; padding: 0; font-size: .8rem; }
+
+.wp-grammar { margin: 2px 0 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.word-popup { --g-m: #7fb8de; --g-f: #f09b84; --g-n: #8fcf9c; --g-v: #e6b86a; }
+.word-popup .gram-line { color: inherit; }
+.word-popup .gram-form { color: color-mix(in srgb, var(--cream) 72%, transparent); }
+.word-popup .gram-form b { color: var(--cream); }
+.word-popup .gram-open { color: var(--yolk); }
+.word-popup .wp-grammar { border-top-color: color-mix(in srgb, var(--cream) 22%, transparent); }
+
+.card-grammar { margin-top: -8px; display: flex; justify-content: center; cursor: default; pointer-events: auto; }
+.card-front .card-grammar p, .card-back .card-grammar p {
+  font-family: var(--font-body); font-variation-settings: normal; font-size: .85rem; font-weight: 600;
+  line-height: 1.4; max-height: none; overflow: visible; white-space: normal; color: inherit;
+}
+/* The yellow back stays yellow in dark mode, so keep dark ink + light-theme badge colours there. */
+.card-back { --g-m: #2f6f9a; --g-f: #b5472e; --g-n: #3d7a4c; --g-v: #8a5a1c; }
+.card-back .card-grammar, .card-back .card-grammar .gram-open { color: var(--ink); }
+.card-back p, .card-back .speak { color: var(--ink); }
+.card-back .speak { border-color: rgba(43, 33, 24, .25); }
+.card-back .card-grammar .gram-badge { background: rgba(255, 255, 255, .55); }
+.card-grammar .gram-summary { align-items: center; text-align: center; }
+.card-grammar .gram-open { align-self: center; }
+.card-grammar .gram-form { display: none; }
+
+.quiz-grammar { margin-top: 10px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--mist); }
+
+.gram-sheet { width: min(640px, calc(100vw - 24px)); max-height: min(86vh, 760px); padding: 0; overflow: hidden; display: none; }
+.gram-sheet[open] { display: flex; flex-direction: column; }
+.gram-head { position: relative; flex-shrink: 0; padding: 20px 56px 12px 22px; }
+.gram-head h2 { font-size: 1.6rem; margin: 0 0 4px; }
+.gram-head .meta { margin: 0; }
+.gram-head .gram-form { margin: 8px 0 0; font-size: .85rem; }
+.gram-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; min-height: 0; padding: 0; }
+.gram-tabs { flex-shrink: 0; margin: 0 22px 12px; align-self: flex-start; max-width: calc(100% - 44px); overflow-x: auto; }
+.gram-tabs button { white-space: nowrap; }
+.gram-tabs button[aria-selected="true"] { background: var(--ink); color: var(--cream); }
+.gram-body { padding: 0 22px 22px; overflow-y: auto; }
+.gram-body h4 { margin: 16px 0 8px; font-size: .95rem; }
+.gram-body h4:first-child { margin-top: 0; }
+.gram-table-wrap { overflow-x: auto; margin-bottom: 8px; }
+.gram-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.gram-table th, .gram-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.gram-table thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--bark-soft); }
+.gram-table tbody th { font-weight: 700; white-space: nowrap; }
+.gram-table tbody th small { display: block; font-weight: 400; font-size: .72rem; color: var(--bark-soft); }
+.gram-table td.hit { background: var(--yolk-soft); font-weight: 800; border-radius: 6px; }
+.gram-note { margin: 4px 0 8px; }
+.gram-tips { display: flex; flex-direction: column; gap: 10px; }
+.gram-tip { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--paper); }
+.gram-tip strong { display: block; margin-bottom: 4px; }
+.gram-tip p { margin: 0; font-size: .9rem; }
+.gram-ex { margin-top: 6px !important; font-family: var(--font-display, inherit); font-style: italic; color: var(--bark); }
+.gram-cases { display: flex; flex-direction: column; gap: 8px; }
+.gram-case { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--paper); }
+.gram-case summary { padding: 10px 14px; cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.gram-case summary::-webkit-details-marker { display: none; }
+.gram-case[open] summary { border-bottom: 1px dashed var(--line); }
+.gram-q { margin-left: auto; font-size: .8rem; color: var(--bark-soft); font-style: italic; }
+.gram-case p { margin: 8px 14px; font-size: .9rem; }
+@media (max-width: 600px) {
+  .gram-sheet { width: 100vw; max-width: 100vw; max-height: 88vh; margin: auto 0 0; border-radius: var(--r-md) var(--r-md) 0 0; }
+  .gram-table { font-size: .85rem; }
+  .gram-table th, .gram-table td { padding: 6px 7px; }
 }
