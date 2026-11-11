@@ -54,14 +54,19 @@ router.put('/me/language', authMiddleware, async (req, res) => {
 // Extra profile columns are added lazily: on Vercel the schema init in db.js
 // never runs, so these routes make sure their columns exist before first use.
 // /me and login don't touch them, so they keep working even if this fails.
+// ALTER TABLE takes an exclusive lock on users even when nothing changes, so it only
+// runs if a column is actually missing (once ever), not on every serverless cold start.
 let profileColumnsReady = null;
 function ensureProfileColumns() {
-  profileColumnsReady ??= db.query(`
+  profileColumnsReady ??= db.query(
+    `SELECT count(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name IN ('displayName', 'dailyGoal', 'activity')`
+  ).then((r) => r.rows[0].n === 3 ? null : db.query(`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS "displayName" TEXT,
       ADD COLUMN IF NOT EXISTS "dailyGoal" INTEGER DEFAULT 20,
       ADD COLUMN IF NOT EXISTS "activity" JSONB DEFAULT '{}'::jsonb
-  `).catch((err) => { profileColumnsReady = null; throw err; });
+  `)).catch((err) => { profileColumnsReady = null; throw err; });
   return profileColumnsReady;
 }
 
