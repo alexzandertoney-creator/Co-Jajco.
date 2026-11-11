@@ -2,6 +2,7 @@
 const Module = require('module');
 const path = require('path');
 const assert = require('assert/strict');
+process.env.DICT_SEED_BUDGET_MS ||= '600000'; // load the whole seed in one go here
 
 (async () => {
   const { PGlite } = await import('@electric-sql/pglite');
@@ -21,7 +22,15 @@ const assert = require('assert/strict');
   assert.equal(r.kupuje.lemma, 'kupować');
   assert.equal(r.xyzzy, undefined);
   const count = (await pg.query(`SELECT count(*)::int AS n FROM dictionary_entries WHERE learning_lang='pl'`)).rows[0].n;
-  assert.ok(count > 17000, `seeded ${count}`);
+  assert.ok(count > 140000, `seeded ${count}`);
+
+  // Inflected forms not in the seed are found through their base form
+  r = await dict.lookup('pl', 'en', ['dialektami', 'słowackim', 'leksykę', 'Polsce']);
+  assert.equal(r.dialektami.translation, 'dialect'); assert.equal(r.dialektami.lemma, 'dialekt');
+  assert.equal(r.słowackim.translation, 'Slovak');
+  assert.equal(r.leksykę.lemma, 'leksyka');
+  assert.equal(r.polsce.translation, 'Poland');
+  assert.deepEqual(dict.baseForms('en', 'houses'), [], 'ending rules are Polish only');
 
   // Seeding is not repeated
   t0 = Date.now();
