@@ -130,7 +130,7 @@ Card count: ${cardCount}
 
 Create a JSON array of flashcards using this structure:
 [
-  { "question": "A word or short phrase in ${nativeLang}", "answer": "The translation in ${learningLang}" }
+  { "question": "A word or short phrase in ${nativeLang}", "answer": "The translation in ${learningLang}", "note": "Optional: grammatical gender, a key form, or a short example sentence in ${learningLang} with its translation" }
 ]
 
 Requirements:
@@ -140,7 +140,8 @@ Requirements:
 - Do not include explanations, examples, or markdown
 - Return valid JSON only
 - Do not wrap the JSON in text or code fences
-- Use only the fields question and answer for each card
+- Use only the fields question, answer and (optionally) note for each card
+- Keep each note under 80 characters
 
 If the topic is blank, choose practical everyday vocabulary.
 `;
@@ -285,8 +286,9 @@ export class StoryTokenizer {
    */
   createDeckFromSelected(deckName) {
     const cards = this.selectedTokens.map(token => ({
-      question: token.text,
-      answer: token.translation,
+      // Same convention as every other deck: question = meaning, answer = word being learned.
+      question: token.translation,
+      answer: token.text,
       stats: { correct: 0, incorrect: 0 }
     }));
 

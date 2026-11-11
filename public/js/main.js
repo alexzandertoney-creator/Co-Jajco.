@@ -1,6 +1,7 @@
 // ============ MAIN APPLICATION INITIALIZATION ============
 
 import * as DataManager from './data.js';
+import { isDue } from './utils.js';
 import * as UI from './ui.js';
 import { setKeyboardContext, setupKeyboardListener, handleFlashcardsKeys } from './keyboard.js';
 import { initTTS, setSpeakMode, speakText } from './tts.js';
@@ -281,16 +282,24 @@ function setupDeckEditorListeners() {
     e.preventDefault();
     const q = UI.editorQuestion.value.trim();
     const a = UI.editorAnswer.value.trim();
-    if (!q || !a) return toast('Fill in both the word and its translation.', 'error');
+    const noteInput = document.getElementById('editorNote');
+    const note = noteInput?.value.trim() || '';
+    if (!q || !a) return toast('Fill in both the word and its meaning.', 'error');
     const deck = DataManager.getDeck(currentDeckIndex);
     if (!deck || deck.id === 'master-vocab') return toast('Pick or create one of your own decks first.', 'error');
 
-    const ok = await deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks);
+    const ok = await deckEditor.addCard(currentDeckIndex, q, a, DataManager.filteredDecks, note);
     if (!ok) return toast('Couldn’t save the card. Try again.', 'error');
     UI.editorQuestion.value = '';
     UI.editorAnswer.value = '';
-    UI.editorQuestion.focus();
+    if (noteInput) noteInput.value = '';
+    UI.editorAnswer.focus();
     refreshDecks(deck.id);
+  });
+
+  document.getElementById('swapAllSidesBtn')?.addEventListener('click', async () => {
+    await deckEditor.swapAllSides(DataManager.getDeck(currentDeckIndex));
+    refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null);
   });
 
   UI.deleteDeckBtn?.addEventListener('click', async () => {
@@ -716,24 +725,21 @@ function setupStoryAnalyzerListeners() {
     });
     if (!deckName) return;
 
+    // Same convention as every deck: question = meaning, answer = word being learned.
     const cards = selectedTokens.map(token => ({
-      question: token.text,
-      answer: token.translation,
+      question: token.translation || '',
+      answer: token.text,
       stats: { correct: 0, incorrect: 0 }
     }));
 
     const newDeck = await DataManager.createDeck(
       deckName,
       DataManager.currentUser.learningLang,
-      DataManager.currentUser.nativeLang
+      DataManager.currentUser.nativeLang,
+      cards
     );
 
     if (newDeck) {
-      // Add the cards to the newly created deck
-      for (const card of cards) {
-        await DataManager.addCardToDeck(newDeck.id, card.question, card.answer);
-      }
-      
       refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
       toast(`Deck “${deckName}” created with ${selectedTokens.length} cards.`, 'success');
     } else {
@@ -766,8 +772,21 @@ function refreshDecks(selectDeckId, { rerender = true } = {}) {
     flashcardsMode.sessionCards = [];
   }
   UI.renderDeckState(deck, DataManager.filteredDecks.length);
+  updateDueBadge();
   if (rerender) switchMode(currentMode);
 }
+
+// Number of cards due for review, shown on the Review nav item.
+function updateDueBadge() {
+  const badge = document.getElementById('dueBadge');
+  if (!badge) return;
+  const n = DataManager.filteredDecks
+    .filter(d => d.id !== 'master-vocab')
+    .reduce((sum, d) => sum + d.cards.filter(c => isDue(c)).length, 0);
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n === 0;
+}
+window.addEventListener('reviewScheduleChanged', updateDueBadge);
 
 async function copyToClipboard(text, successMessage) {
   try {

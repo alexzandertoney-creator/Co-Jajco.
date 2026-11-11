@@ -1,7 +1,7 @@
 import { esc } from './utils.js';
 import * as DataManager from './data.js';
 import * as UI from './ui.js';
-import { LANGUAGE_LEVELS, LANGUAGES } from './constants.js';
+import { LANGUAGE_LEVELS, LANGUAGES, langName } from './constants.js';
 
 let activeTab = 'decks';
 
@@ -271,8 +271,4 @@ export async function publishCurrentStory(data, level, title) {
     console.error('Publish story failed:', error);
     toast(`Unable to publish story: ${error.message}`, 'error');
   }
-}
-
-function langName(code) {
-  return LANGUAGES.find(l => l.code === code)?.name || code || 'Unknown';
 }

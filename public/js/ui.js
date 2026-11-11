@@ -62,7 +62,6 @@ export const storyInput = document.getElementById('storyInput');
 export const analyzeStoryBtn = document.getElementById('analyzeStory');
 export const storyDisplay = document.getElementById('storyDisplay');
 export const unknownWordsList = document.getElementById('unknownWordsList');
-export const createDeckFromStory = document.getElementById('createDeckFromStory');
 export const speakStoryBtn = document.getElementById('speakStoryBtn');
 export const stopStoryBtn = document.getElementById('stopStoryBtn');
 export const ignoreBasicWords = document.getElementById('ignoreBasicWords');

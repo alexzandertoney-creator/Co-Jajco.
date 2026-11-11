@@ -58,6 +58,7 @@ export class FlashcardsMode {
         questionEl.textContent = currentCard.answer;
         answerEl.textContent = currentCard.question;
       }
+      showNote(currentCard);
 
       requestAnimationFrame(() => {
         card.classList.remove('no-transition');
@@ -75,6 +76,7 @@ export class FlashcardsMode {
     if (!this.sessionCards || this.sessionCards.length === 0) {
       questionEl.textContent = 'All done!';
       answerEl.textContent = 'You knew every card. Turn study mode off and on to go again.';
+      showNote(null);
       card.classList.remove('flipped');
 
       const progressEl = document.getElementById('cardProgress');
@@ -100,6 +102,7 @@ export class FlashcardsMode {
         questionEl.textContent = currentCard.answer;
         answerEl.textContent = currentCard.question;
       }
+      showNote(currentCard);
 
       requestAnimationFrame(() => {
         card.classList.remove('no-transition');
@@ -133,9 +136,8 @@ export class FlashcardsMode {
    */
   autoSpeak(cardData, deck, learningLang) {
     const isFlipped = card.classList.contains('flipped');
-    const isFrontLearning = this.frontIsQuestion
-      ? deck.learningLang === learningLang
-      : deck.nativeLang === learningLang;
+    // question = meaning (native language), answer = word being learned.
+    const isFrontLearning = !this.frontIsQuestion;
 
     autoSpeakCard(cardData, this.frontIsQuestion, isFrontLearning, isFlipped, learningLang, deck.nativeLang);
   }
@@ -293,10 +295,18 @@ export class FlashcardsMode {
   speakVisible(card, langCode, nativeLang = 'en') {
     const isFlipped = document.getElementById('card').classList.contains('flipped');
     const visibleText = isFlipped ? this.getBackText(card) : this.getFrontText(card);
-    // question = learning language; the visible side is the question when front-is-question XOR flipped
+    // question = meaning (native); the visible side is the question when front-is-question XOR flipped
     const showingQuestion = this.frontIsQuestion !== isFlipped;
-    speakText(visibleText, showingQuestion ? langCode : nativeLang);
+    speakText(visibleText, showingQuestion ? nativeLang : langCode);
   }
 }
 
 export default new FlashcardsMode();
+
+// Notes and example sentences appear under the answer on the back of the card.
+function showNote(cardData) {
+  const el = document.getElementById('answerNote');
+  if (!el) return;
+  el.textContent = cardData?.note || '';
+  el.hidden = !cardData?.note;
+}

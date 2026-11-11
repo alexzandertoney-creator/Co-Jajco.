@@ -20,7 +20,7 @@
 
     <nav class="primary-nav mode-selector" aria-label="Main">
       <button data-mode="flashcards" data-group="study"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg><span>Study</span></button>
-      <a href="smartReview.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span></a>
+      <a href="smartReview.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span><span id="dueBadge" class="nav-badge" hidden></span></a>
       <button data-mode="deckEditor" data-group="deckEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Decks</span></button>
       <button data-mode="storyAnalyzer" data-group="storyAnalyzer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Stories</span></button>
       <button data-mode="publicLibrary" data-group="publicLibrary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>Library</span></button>
@@ -66,6 +66,7 @@
       </div>
       <div class="card-back">
         <p id="answer"></p>
+        <p id="answerNote" class="card-note" hidden></p>
         <button id="speakBackBtn" class="speak" title="Listen" aria-label="Listen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
       </div>
     </div>
@@ -115,10 +116,11 @@
       <span id="learnProgress" class="progress-text"></span>
       <div class="toolbar-controls">
         <label class="inline-select">
-          <span>Answer with</span>
+          <span>Practice</span>
           <select id="learnDirection">
-            <option value="meaning">the meaning</option>
-            <option value="word">the word</option>
+            <option value="meaning">See the word, type the meaning</option>
+            <option value="word">See the meaning, type the word</option>
+            <option value="listen">Listen and type the word</option>
           </select>
         </label>
         <label class="study-toggle">
@@ -152,7 +154,7 @@
     <div class="progress-bar" aria-hidden="true"><span id="testBar"></span></div>
 
     <div class="panel quiz" id="testPanel">
-      <p class="quiz-label">Pick the meaning</p>
+      <p class="quiz-label">Choose the translation</p>
       <p id="testQuestion" class="prompt-word"></p>
       <div id="testOptions"></div>
       <p id="testFeedback" aria-live="polite"></p>
@@ -176,14 +178,20 @@
   <section id="deckEditorContainer" class="mode-container narrow">
     <div class="section-head">
       <h2>Edit cards</h2>
-      <button id="publishDeckBtn" class="ghost">Publish to library</button>
+      <div class="actions">
+        <button id="swapAllSidesBtn" class="ghost" type="button">Swap sides of all cards</button>
+        <button id="publishDeckBtn" class="ghost">Publish to library</button>
+      </div>
     </div>
 
     <form id="editorControls" class="panel">
       <h3>Add a card</h3>
       <div class="field-row">
-        <input id="editorQuestion" placeholder="Word or phrase" aria-label="Question" />
-        <input id="editorAnswer" placeholder="Translation" aria-label="Answer" />
+        <input id="editorAnswer" placeholder="Word" aria-label="Word in the language you're learning" autocomplete="off" />
+        <input id="editorQuestion" placeholder="Meaning" aria-label="Meaning" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <input id="editorNote" placeholder="Note or example sentence (optional)" aria-label="Note or example sentence" autocomplete="off" />
         <button type="submit" id="editorAdd">Add card</button>
       </div>
     </form>
@@ -341,7 +349,6 @@
             <span class="meta">Use ← → to move between words</span>
           </div>
           <div class="story-display" id="storyDisplay"></div>
-          <button id="createDeckFromStory" class="ghost">Create deck from unknown words</button>
         </div>
 
         <aside class="story-flashcards-panel">

@@ -125,3 +125,36 @@ export function gradeAnswer(input, expected) {
   }
   return { result: 'wrong', expected: alternatives[0] || '' };
 }
+
+// ---------- Spaced repetition ----------
+// Simplified SM-2 (the algorithm behind classic Anki). Each card carries
+// srs = { reps, interval (days), ease, due (ms timestamp) }.
+// Right answers push the next review further out (1 day, 3 days, then ×ease);
+// a miss resets the card so it comes back today.
+
+const DAY = 86400000;
+
+export function scheduleCard(card, correct, now = Date.now()) {
+  const srs = { reps: 0, interval: 0, ease: 2.5, ...(card.srs || {}) };
+  if (correct) {
+    srs.reps += 1;
+    srs.interval = srs.reps === 1 ? 1 : srs.reps === 2 ? 3 : Math.round(srs.interval * srs.ease);
+    srs.ease = Math.min(3, srs.ease + 0.1);
+  } else {
+    srs.reps = 0;
+    srs.interval = 0;
+    srs.ease = Math.max(1.3, srs.ease - 0.2);
+  }
+  // Due at the start of the target day, so "due today" means any time today.
+  const due = new Date(now + srs.interval * DAY);
+  due.setHours(0, 0, 0, 0);
+  srs.due = srs.interval === 0 ? now : due.getTime();
+  card.srs = srs;
+  card.lastReviewed = now;
+  return srs;
+}
+
+// A card is due if it has been studied and its review date has arrived.
+// Never-studied cards are "new", not due; the review queue mixes in a few per day.
+export const isDue = (card, now = Date.now()) => !!card.srs && card.srs.due <= now;
+export const isNew = (card) => !card.srs;

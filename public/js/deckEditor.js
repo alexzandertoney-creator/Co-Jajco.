@@ -2,6 +2,7 @@
 
 import { cardList, editorQuestion, editorAnswer } from './ui.js';
 import * as DataManager from './data.js';
+import { langName } from './constants.js';
 
 export class DeckEditor {
   constructor() {
@@ -17,6 +18,10 @@ export class DeckEditor {
     const isMaster = deck?.id === 'master-vocab';
 
     cardList.innerHTML = '';
+    if (deck) {
+      editorAnswer.placeholder = `${langName(deck.learningLang)} word`;
+      editorQuestion.placeholder = `Meaning in ${langName(deck.nativeLang)}`;
+    }
     // Master Vocab is a read-only roll-up of every deck, so hide the editing tools.
     document.body.classList.toggle('editor-readonly', !deck || isMaster);
 
@@ -34,14 +39,21 @@ export class DeckEditor {
       const li = document.createElement('li');
       li.className = 'card-item';
 
+      // Cards store question = meaning, answer = word being learned; show the word first.
       const pair = document.createElement('span');
       pair.className = 'pair';
-      const q = document.createElement('strong');
-      q.textContent = card.question;
-      const a = document.createElement('span');
-      a.className = 'meta';
-      a.textContent = card.answer;
-      pair.append(q, a);
+      const word = document.createElement('strong');
+      word.textContent = card.answer;
+      const meaning = document.createElement('span');
+      meaning.className = 'meta';
+      meaning.textContent = card.question;
+      pair.append(word, meaning);
+      if (card.note) {
+        const note = document.createElement('span');
+        note.className = 'card-note';
+        note.textContent = card.note;
+        pair.appendChild(note);
+      }
       li.appendChild(pair);
 
       const stats = document.createElement('span');
@@ -55,12 +67,12 @@ export class DeckEditor {
         const edit = document.createElement('button');
         edit.className = 'ghost small';
         edit.textContent = 'Edit';
-        edit.setAttribute('aria-label', `Edit ${card.question}`);
+        edit.setAttribute('aria-label', `Edit ${card.answer}`);
         edit.addEventListener('click', () => this.editCard(deck, index));
         const del = document.createElement('button');
         del.className = 'ghost danger small';
         del.textContent = 'Delete';
-        del.setAttribute('aria-label', `Delete ${card.question}`);
+        del.setAttribute('aria-label', `Delete ${card.answer}`);
         del.addEventListener('click', () => this.deleteCard(deck.id, index));
         li.append(edit, del);
       }
@@ -71,11 +83,11 @@ export class DeckEditor {
   /**
    * Add card to deck
    */
-  async addCard(deckIndex, question, answer, filteredDecks) {
+  async addCard(deckIndex, question, answer, filteredDecks, note = '') {
     const deck = filteredDecks[deckIndex];
     if (!deck || deck.id === 'master-vocab') return false;
 
-    const result = await DataManager.addCardToDeck(deck.id, question, answer);
+    const result = await DataManager.addCardToDeck(deck.id, question, answer, note);
     if (result) {
       editorQuestion.value = '';
       editorAnswer.value = '';
@@ -102,14 +114,15 @@ export class DeckEditor {
   async editCard(deck, index) {
     const card = deck.cards[index];
     const res = await formDialog('Edit card', [
-      { label: 'Word or phrase', value: card.question },
-      { label: 'Translation', value: card.answer },
+      { label: `${langName(deck.learningLang)} word`, value: card.answer },
+      { label: `Meaning in ${langName(deck.nativeLang)}`, value: card.question },
+      { label: 'Note or example (optional)', value: card.note || '', required: false, placeholder: 'e.g. masculine · Mam kota = I have a cat' },
     ]);
     if (!res) return;
-    const [newQuestion, newAnswer] = res;
+    const [newAnswer, newQuestion, newNote] = res;
     if (!newQuestion || !newAnswer) return toast('Both sides of the card need text.', 'error');
 
-    const ok = await DataManager.updateCard(deck.id, index, newQuestion, newAnswer);
+    const ok = await DataManager.updateCard(deck.id, index, newQuestion, newAnswer, newNote);
     if (!ok) toast('Couldn’t save your changes. Try again.', 'error');
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
@@ -212,70 +225,43 @@ export class DeckEditor {
    * Import deck from JSON text
    */
   async importDeckFromJson(jsonString, learningLang, nativeLang, deckName) {
+    let cards;
     try {
-      const cards = JSON.parse(jsonString);
-      if (!Array.isArray(cards)) return null;
-
-      const normalizedCards = cards
-        .map(card => ({
-          question: String(card.question || card.text || card.front || '').trim(),
-          answer: String(card.answer || card.translation || card.back || '').trim()
-        }))
-        .filter(card => card.question && card.answer);
-
-      if (!normalizedCards.length) return null;
-
-      const finalDeckName = deckName || `AI Curation ${new Date().toLocaleDateString()}`;
-      
-      // Create deck on server
-      const deck = await DataManager.createDeck(finalDeckName, learningLang, nativeLang);
-      
-      if (!deck) {
-        console.error('Failed to create deck on server');
-        return null;
-      }
-
-      // Process cards sequentially with retries and a small delay to avoid
-      // backend timeouts or rate limits. Concurrent PUTs can cause overwrites
-      // on some hosting environments, so a sequential approach is more robust.
-      const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-      const maxRetries = 3;
-      const delayBetweenCards = 200; // ms
-      const failed = [];
-
-      for (const card of normalizedCards) {
-        let success = false;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            success = await DataManager.addCardToDeck(deck.id, card.question, card.answer);
-            console.log(`Imported "${card.question}"`, success, `(attempt ${attempt})`);
-            if (success) break;
-          } catch (err) {
-            console.error(`Error importing "${card.question}" on attempt ${attempt}:`, err);
-          }
-
-          // Exponential backoff before retrying
-          await sleep(100 * attempt);
-        }
-
-        if (!success) {
-          failed.push(card);
-          console.error('Failed to import card after retries:', card);
-        }
-
-        // Small delay between cards to be gentle on the server
-        await sleep(delayBetweenCards);
-      }
-
-      if (failed.length) {
-        console.warn(`${failed.length} cards failed to import.`);
-      }
-
-      return deck;
-    } catch (error) {
-      console.error('Failed to import deck from JSON:', error);
+      // AI chats often wrap JSON in ```json fences; strip them before parsing.
+      cards = JSON.parse(jsonString.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ''));
+    } catch {
       return null;
     }
+    if (!Array.isArray(cards)) return null;
+
+    const normalizedCards = cards
+      .map(card => {
+        const note = String(card.note || card.example || '').trim();
+        return {
+          question: String(card.question || card.text || card.front || '').trim(),
+          answer: String(card.answer || card.translation || card.back || '').trim(),
+          ...(note ? { note } : {}),
+          stats: { correct: 0, incorrect: 0 },
+        };
+      })
+      .filter(card => card.question && card.answer);
+    if (!normalizedCards.length) return null;
+
+    // One request for the whole deck (this used to be one PUT per card, with delays).
+    return DataManager.createDeck(deckName || `AI deck ${new Date().toLocaleDateString()}`, learningLang, nativeLang, normalizedCards);
+  }
+
+  /**
+   * Swap front and back of every card (fixes decks made with the sides reversed).
+   */
+  async swapAllSides(deck) {
+    if (!deck || deck.id === 'master-vocab' || !deck.cards.length) return;
+    const ok = await confirmDialog('Swap sides of all cards?', `Every card in “${deck.name}” will have its two sides switched. Use this if the ${langName(deck.learningLang)} words are on the wrong side.`, { confirmLabel: 'Swap sides' });
+    if (!ok) return;
+    const swapped = deck.cards.map(c => ({ ...c, question: c.answer, answer: c.question }));
+    if (await DataManager.setDeckCards(deck.id, swapped)) toast('Swapped both sides of every card.', 'success');
+    else toast('Couldn’t save the swap. Try again.', 'error');
+    this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 }
 

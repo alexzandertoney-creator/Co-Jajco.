@@ -4,6 +4,7 @@
 import { shuffleArray, gradeAnswer } from '../utils.js';
 import { learnQuestion, learnAnswer, learnFeedback, renderResults } from '../ui.js';
 import { updateCardStatsFromCard } from '../data.js';
+import { speakText, hasVoiceFor } from '../tts.js';
 
 // Letters that are awkward to type on an English keyboard, per learning language.
 const SPECIAL_LETTERS = {
@@ -27,13 +28,21 @@ export class LearnMode {
     this.advanceTimer = null;
   }
 
+  // 'meaning': see the word, type its meaning
+  // 'word':    see the meaning, type the word
+  // 'listen':  hear the word, type it (spelling + listening practice)
   get direction() {
-    return $('learnDirection')?.value === 'word' ? 'word' : 'meaning';
+    const v = $('learnDirection')?.value;
+    return v === 'word' || v === 'listen' ? v : 'meaning';
   }
 
-  // Cards are stored question = word being learned, answer = meaning.
-  promptOf(card) { return this.direction === 'word' ? card.answer : card.question; }
-  answerOf(card) { return this.direction === 'word' ? card.question : card.answer; }
+  // Cards store question = meaning, answer = word being learned.
+  promptOf(card) { return this.direction === 'word' ? card.question : card.answer; }
+  answerOf(card) { return this.direction === 'meaning' ? card.question : card.answer; }
+
+  speak(card, rate = 0.85) {
+    speakText(card.answer, this.deck?.learningLang, rate);
+  }
 
   startSession(deck, shouldShuffle = false, cards = null) {
     clearTimeout(this.advanceTimer);
@@ -55,8 +64,10 @@ export class LearnMode {
     const card = this.queue[this.index];
     if (!card) return;
     this.awaitingNext = false;
-    $('learnPromptLabel').textContent = this.direction === 'word' ? 'Type the word' : 'Type the meaning';
-    learnQuestion.textContent = this.promptOf(card);
+    const listening = this.direction === 'listen';
+    $('learnPromptLabel').textContent = listening ? 'Type what you hear' : this.direction === 'word' ? 'Type the word' : 'Type the meaning';
+    if (listening) this.renderListenControls(card);
+    else learnQuestion.textContent = this.promptOf(card);
     learnFeedback.textContent = '';
     learnFeedback.className = '';
     learnAnswer.value = '';
@@ -65,6 +76,33 @@ export class LearnMode {
     $('learnSkip').hidden = false;
     this.updateProgress();
     learnAnswer.focus({ preventScroll: true });
+    if (listening) this.speak(card);
+  }
+
+  // In listening mode the prompt is a play button instead of text.
+  renderListenControls(card) {
+    learnQuestion.replaceChildren();
+    if (!hasVoiceFor(this.deck?.learningLang) && window.speechSynthesis?.getVoices().length) {
+      learnQuestion.textContent = 'Your browser has no voice for this language. Add one in your system’s speech settings, or pick another practice type.';
+      learnQuestion.classList.add('listen-missing');
+      return;
+    }
+    learnQuestion.classList.remove('listen-missing');
+    const row = document.createElement('span');
+    row.className = 'listen-row';
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'listen-play';
+    play.setAttribute('aria-label', 'Play the word again');
+    play.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+    play.addEventListener('click', () => { this.speak(card); learnAnswer.focus(); });
+    const slow = document.createElement('button');
+    slow.type = 'button';
+    slow.className = 'ghost small';
+    slow.textContent = 'Slower';
+    slow.addEventListener('click', () => { this.speak(card, 0.55); learnAnswer.focus(); });
+    row.append(play, slow);
+    learnQuestion.appendChild(row);
   }
 
   updateProgress() {
@@ -112,8 +150,19 @@ export class LearnMode {
 
   showFeedback(kind, text) {
     this.awaitingNext = true;
+    const card = this.queue[this.index];
     learnFeedback.className = kind;
     learnFeedback.textContent = text;
+    if (this.direction === 'listen' && card) {
+      // Reveal the meaning once the word has been heard and typed.
+      learnFeedback.append(document.createElement('br'), document.createTextNode(`${card.answer} = ${card.question}`));
+    }
+    if (card?.note) {
+      const note = document.createElement('span');
+      note.className = 'card-note';
+      note.textContent = card.note;
+      learnFeedback.append(document.createElement('br'), note);
+    }
     learnAnswer.disabled = true;
     $('learnSkip').hidden = true;
     $('submitLearn').textContent = 'Continue';
@@ -144,7 +193,7 @@ export class LearnMode {
     const bar = $('accentBar');
     const letters = SPECIAL_LETTERS[this.deck?.learningLang];
     // Only useful when typing in the language being learned.
-    bar.hidden = !letters || this.direction !== 'word';
+    bar.hidden = !letters || this.direction === 'meaning';
     bar.replaceChildren();
     (letters || []).forEach((ch) => {
       const b = document.createElement('button');

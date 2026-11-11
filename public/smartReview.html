@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-group="study">
   <aside class="sidebar">
     <a class="brand" href="index.html">
       <img src="/images/logo.01.png" alt="" width="44" height="44">
@@ -18,7 +18,7 @@
 
     <nav class="primary-nav" aria-label="Main">
       <a href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg><span>Study</span></a>
-      <a href="smartReview.html" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span></a>
+      <a href="smartReview.html" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span><span id="dueBadge" class="nav-badge" hidden></span></a>
       <a href="index.html#deckEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Decks</span></a>
       <a href="index.html#storyAnalyzer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Stories</span></a>
       <a href="index.html#publicLibrary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>Library</span></a>
@@ -43,9 +43,11 @@
 
   <main class="main">
   <div class="deck-controls">
-    <select id="reviewDeckSelect" class="deck-title" aria-label="Choose a saved deck"></select>
+    <select id="reviewDeckSelect" class="deck-title" aria-label="Review deck"></select>
   </div>
-  <p class="meta review-sub">Smart review brings back the cards you miss more often.</p>
+  <p class="meta review-sub" id="reviewSummary">Cards come back right before you'd forget them.</p>
+
+  <div id="reviewDone" class="deck-empty-state" hidden></div>
 
   <section id="smartReviewContainer" class="mode-container" style="display: flex;">
     <div id="card" class="card">
@@ -57,6 +59,7 @@
       </div>
       <div class="card-back">
         <p id="answer"></p>
+        <p id="answerNote" class="card-note" hidden></p>
         <button id="speakBackBtn" class="speak" title="Listen" aria-label="Listen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
         </button>

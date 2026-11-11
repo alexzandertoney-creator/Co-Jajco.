@@ -21,7 +21,7 @@ export function getSpeakMode() {
 /**
  * Speak text in target language
  */
-export function speakText(text, langCode = 'en') {
+export function speakText(text, langCode = 'en', rate = 0.9) {
   if (!window.speechSynthesis || !text) return;
   speechSynthesis.cancel();
 
@@ -45,7 +45,7 @@ export function speakText(text, langCode = 'en') {
   }
 
   utterance.lang = lang;
-  utterance.rate = 0.9;
+  utterance.rate = rate;
 
   speechSynthesis.speak(utterance);
 }
@@ -110,4 +110,11 @@ export function initTTS() {
   if (!window.speechSynthesis) return;
   // Touching getVoices() makes Chrome start loading them before the first card is spoken.
   speechSynthesis.getVoices();
+}
+
+// True if the browser has a voice for this language (voices can load late, so ask at use time).
+export function hasVoiceFor(langCode) {
+  if (!window.speechSynthesis) return false;
+  const base = (langMap[langCode] || langCode || '').split('-')[0].toLowerCase();
+  return speechSynthesis.getVoices().some(v => v.lang.toLowerCase().startsWith(base));
 }

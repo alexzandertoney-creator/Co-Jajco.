@@ -1,6 +1,6 @@
 // ============ DATA MANAGEMENT ============
 
-import { buildMasterVocab } from './utils.js';
+import { buildMasterVocab, scheduleCard } from './utils.js';
 
 // Global state
 export let decks = [];
@@ -146,7 +146,8 @@ export function updateFilteredDecks() {
 /**
  * Create new deck (async)
  */
-export async function createDeck(name, learningLang, nativeLang) {
+// cards: optional initial cards, saved in the same request (imports used to PUT once per card).
+export async function createDeck(name, learningLang, nativeLang, cards = []) {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -165,7 +166,7 @@ export async function createDeck(name, learningLang, nativeLang) {
         name,
         learningLang,
         nativeLang,
-        cards: []
+        cards
       })
     });
 
@@ -232,7 +233,7 @@ export async function deleteDeck(deckId) {
 /**
  * Add card to deck (async)
  */
-export async function addCardToDeck(deckId, question, answer) {
+export async function addCardToDeck(deckId, question, answer, note = '') {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -257,6 +258,7 @@ export async function addCardToDeck(deckId, question, answer) {
     deck.cards.push({
       question,
       answer,
+      ...(note ? { note } : {}),
       stats: { correct: 0, incorrect: 0 }
     });
 
@@ -365,7 +367,7 @@ export async function deleteCardFromDeck(deckId, cardIndex) {
 /**
  * Update card in deck (async)
  */
-export async function updateCard(deckId, cardIndex, question, answer) {
+export async function updateCard(deckId, cardIndex, question, answer, note) {
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -390,6 +392,10 @@ export async function updateCard(deckId, cardIndex, question, answer) {
     // Update local deck first
     deck.cards[cardIndex].question = question;
     deck.cards[cardIndex].answer = answer;
+    if (note !== undefined) {
+      if (note) deck.cards[cardIndex].note = note;
+      else delete deck.cards[cardIndex].note;
+    }
 
     // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
@@ -439,40 +445,31 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     return false;
   }
 
+  const card = deck.cards[cardIndex];
+  if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
+  const before = { stats: { ...card.stats }, srs: card.srs, lastReviewed: card.lastReviewed };
+  // If the save fails, put the card back exactly as it was.
+  const revert = () => Object.assign(card, before);
+
   try {
-    // Update local card first
-    if (!deck.cards[cardIndex].stats) {
-      deck.cards[cardIndex].stats = { correct: 0, incorrect: 0 };
-    }
+    if (correct) card.stats.correct++;
+    else card.stats.incorrect++;
+    // Every answer, in any mode, feeds the spaced-repetition schedule.
+    scheduleCard(card, correct);
+    window.dispatchEvent(new Event('reviewScheduleChanged'));
 
-    if (correct) {
-      deck.cards[cardIndex].stats.correct++;
-    } else {
-      deck.cards[cardIndex].stats.incorrect++;
-    }
-    // Smart Review uses this to bring back cards you haven't seen in a while.
-    deck.cards[cardIndex].lastReviewed = Date.now();
-
-    // Update on server
     const res = await fetch(`/api/library/decks/${deckId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        cards: deck.cards
-      })
+      body: JSON.stringify({ cards: deck.cards })
     });
 
     if (!res.ok) {
       console.error('Failed to update stats:', res.status);
-      // Revert the stat change
-      if (correct) {
-        deck.cards[cardIndex].stats.correct--;
-      } else {
-        deck.cards[cardIndex].stats.incorrect--;
-      }
+      revert();
       return false;
     }
 
@@ -481,12 +478,7 @@ export async function updateCardStats(deckId, cardIndex, correct) {
     return true;
   } catch (error) {
     console.error('Failed to update card stats:', error);
-    // Revert the stat change
-    if (correct) {
-      deck.cards[cardIndex].stats.correct--;
-    } else {
-      deck.cards[cardIndex].stats.incorrect--;
-    }
+    revert();
     return false;
   }
 }
@@ -551,4 +543,26 @@ function syncCards(deck, serverCards) {
     else deck.cards[i] = c;
   });
   deck.cards.length = serverCards.length;
+}
+
+/**
+ * Replace all of a deck's cards in one save (used by "Swap sides of all cards").
+ */
+export async function setDeckCards(deckId, cards) {
+  const deck = decks.find(d => d.id == deckId);
+  if (!deck || deckId === 'master-vocab') return false;
+  try {
+    const res = await fetch(`/api/library/decks/${deckId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ cards })
+    });
+    if (!res.ok) return false;
+    const updated = await res.json();
+    syncCards(deck, updated.cards);
+    return true;
+  } catch (error) {
+    console.error('Failed to save deck cards:', error);
+    return false;
+  }
 }

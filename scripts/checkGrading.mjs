@@ -14,3 +14,18 @@ assert.equal(g('', 'jajko').result, 'wrong');
 assert.equal(g('mleko', 'jajko').result, 'wrong');
 assert.equal(esc('<img onerror=x>"\''), '&lt;img onerror=x&gt;&quot;&#39;');
 console.log('grading ok');
+
+// Spaced repetition schedule
+import { scheduleCard, isDue, isNew } from '../public/js/utils.js';
+const t0 = new Date('2026-01-10T15:00:00').getTime();
+const c = { question: 'egg', answer: 'jajko' };
+assert.ok(isNew(c));
+scheduleCard(c, true, t0);   assert.equal(c.srs.interval, 1);
+assert.ok(!isDue(c, t0));
+assert.ok(isDue(c, new Date('2026-01-11T08:00:00').getTime())); // due next morning
+scheduleCard(c, true, t0);   assert.equal(c.srs.interval, 3);
+scheduleCard(c, true, t0);   assert.ok(c.srs.interval > 3);    // then grows by ease
+scheduleCard(c, false, t0);  assert.equal(c.srs.interval, 0);
+assert.ok(isDue(c, t0));                                          // a miss comes back today
+assert.ok(c.srs.ease >= 1.3);
+console.log('srs ok');

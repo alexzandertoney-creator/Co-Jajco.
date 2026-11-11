@@ -59,3 +59,5 @@ export const MATCH_GAME = {
   INITIAL_TIME: 60,
   UPDATE_INTERVAL: 1000
 };
+
+export const langName = (code) => LANGUAGES.find(l => l.code === code)?.name || code || 'Unknown';
