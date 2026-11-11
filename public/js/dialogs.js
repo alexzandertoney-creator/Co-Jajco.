@@ -105,9 +105,10 @@
         resolve(confirmed ? inputs.map((i) => i.value.trim()) : null);
       });
 
+      window.enhanceSelects?.(dlg);
       dlg.showModal();
       (inputs[0] || ok).focus();
-      inputs[0]?.select?.();
+      if (inputs[0]?.tagName === 'INPUT') inputs[0].select();
     });
 
   window.confirmDialog = async (title, message, { confirmLabel = 'Confirm', danger = false } = {}) =>

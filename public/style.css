@@ -104,7 +104,7 @@ button.ghost.danger:hover { background: var(--rust-soft); }
 }
 .icon-btn:hover { background: var(--rust-soft); border-color: transparent; color: var(--rust); }
 
-select, input, textarea {
+select, .select-button, input, textarea {
   min-height: 44px;
   padding: 10px 14px;
   background: var(--birch);
@@ -112,41 +112,61 @@ select, input, textarea {
   border-radius: var(--r-sm);
   transition: border-color .15s var(--ease);
 }
-select:hover, input:hover, textarea:hover { border-color: var(--line-strong); }
-select:focus, input:focus, textarea:focus { outline: none; border-color: var(--pine); box-shadow: 0 0 0 3px var(--yolk-soft); }
-/* One chevron for every select, everywhere. */
-select {
-  cursor: pointer;
-  appearance: none; -webkit-appearance: none;
+select:hover, .select-button:hover, input:hover, textarea:hover { border-color: var(--line-strong); }
+select:focus, .select-button:focus-visible, .select-button[aria-expanded="true"], input:focus, textarea:focus { outline: none; border-color: var(--pine); box-shadow: 0 0 0 3px var(--yolk-soft); }
+/* Every <select> is upgraded by js/selects.js into .select-button + .select-list,
+   so dropdowns look identical in every browser. The native element stays for state. */
+.select-wrap { position: relative; display: inline-flex; min-width: 0; max-width: 100%; vertical-align: middle; }
+.select-native {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; pointer-events: none;
+}
+/* button.select-button (not .select-button) so it outranks the generic button:hover,
+   whose background shorthand would otherwise tile the chevron and turn it pine-green. */
+button.select-button {
+  display: inline-flex; align-items: center;
+  background-color: var(--birch);
+  min-width: 0; max-width: 100%;
   padding-right: 40px;
+  color: var(--bark); text-align: left; font-weight: 600;
+  cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2324402e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
 }
+.select-button:active { transform: none; }
+.select-button:disabled { opacity: .5; cursor: not-allowed; }
+.select-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Chrome's customizable select: the dropdown list itself matches the app.
-   Other browsers keep their native (light) list. */
-@supports (appearance: base-select) {
-  select, select::picker(select) { appearance: base-select; }
-  select::picker-icon { display: none; }
-  select::picker(select) {
-    margin-top: 6px; padding: 6px;
-    min-width: anchor-size(width); max-height: min(60vh, 420px);
-    background: var(--birch); color: var(--bark);
-    border: 1px solid var(--line); border-radius: var(--r-md);
-    box-shadow: var(--shadow-card);
-  }
-  select option {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 12px; border-radius: var(--r-sm);
-    font: 600 .95rem/1.4 var(--font-body); color: var(--bark);
-    cursor: pointer;
-  }
-  select option:hover, select option:focus-visible { background: var(--mist); outline: none; }
-  select option:checked { background: var(--yolk-soft); }
-  select option::checkmark { color: var(--pine); }
+.select-list {
+  position: absolute; z-index: 200;
+  top: calc(100% + 6px); left: 0;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  max-height: 320px; overflow-y: auto;
+  margin: 0; padding: 6px; list-style: none;
+  background: var(--birch); color: var(--bark);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  animation: list-in .14s var(--ease);
 }
+.select-list:focus { outline: none; }
+.select-list[hidden] { display: none; }
+.drop-up .select-list { top: auto; bottom: calc(100% + 6px); }
+.select-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px 9px 32px; border-radius: var(--r-sm);
+  font: 600 .95rem/1.35 var(--font-body);
+  cursor: pointer; position: relative;
+}
+.select-list li.active { background: var(--mist); }
+.select-list li[aria-selected="true"] { background: var(--yolk-soft); }
+.select-list li[aria-selected="true"]::before {
+  content: "✓"; position: absolute; left: 11px; color: var(--pine); font-weight: 800;
+}
+.select-list li[aria-disabled="true"] { opacity: .45; cursor: default; }
+@keyframes list-in { from { opacity: 0; transform: translateY(-4px); } }
+
 textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.5; }
 textarea.tall { min-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875rem; }
 input[type="checkbox"] { min-height: 0; width: 18px; height: 18px; accent-color: var(--pine); cursor: pointer; }
@@ -195,11 +215,11 @@ body:has(.sidebar) { display: grid; grid-template-columns: 240px minmax(0, 1fr);
 .account { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 .lang-picker, .inline-select { display: flex; align-items: center; gap: 8px; }
 .account .lang-picker { flex-direction: column; align-items: stretch; gap: 6px; }
-.lang-picker span, .inline-select span { color: var(--bark-soft); font-weight: 600; }
-.account .lang-picker span { color: rgba(250, 250, 246, .7); padding-left: 2px; }
-.account select { background-color: rgba(250, 250, 246, .07); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fafaf6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); border-color: rgba(250, 250, 246, .22); color: var(--birch); }
-.account select:hover { border-color: rgba(250, 250, 246, .45); }
-.account select option { color: var(--bark); }
+.lang-picker > span:not(.select-wrap), .inline-select > span:not(.select-wrap) { color: var(--bark-soft); font-weight: 600; }
+.account .lang-picker > span:not(.select-wrap) { color: rgba(250, 250, 246, .7); padding-left: 2px; }
+.account .select-button { background-color: rgba(250, 250, 246, .07); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fafaf6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); border-color: rgba(250, 250, 246, .22); color: var(--birch); }
+.account .select-button:hover { border-color: rgba(250, 250, 246, .45); }
+.account .select-wrap, .account .select-button { width: 100%; }
 .account button.ghost { color: var(--birch); border-color: rgba(250, 250, 246, .25); }
 .account button.ghost:hover { background: rgba(250, 250, 246, .08); border-color: var(--birch); }
 
@@ -211,9 +231,8 @@ body:has(.sidebar) { display: grid; grid-template-columns: 240px minmax(0, 1fr);
 
 /* Deck is the page context: its name is the title, switchable in place. */
 .deck-controls { width: 100%; max-width: 760px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.deck-title {
+.deck-title, .select-button.deck-title {
   flex: 0 1 auto; min-width: 0; max-width: 100%;
-  field-sizing: content;
   appearance: none; -webkit-appearance: none;
   padding: 4px 36px 4px 8px; margin-left: -8px;
   border: 1.5px solid transparent; border-radius: var(--r-sm);
@@ -223,11 +242,10 @@ body:has(.sidebar) { display: grid; grid-template-columns: 240px minmax(0, 1fr);
   font-weight: 800; font-size: clamp(1.5rem, 3.4vw, 2.1rem); line-height: 1.2;
   text-overflow: ellipsis;
 }
-.deck-controls button { flex-shrink: 0; white-space: nowrap; }
+.deck-controls > button { flex-shrink: 0; white-space: nowrap; }
+.deck-controls .select-wrap { flex: 1 1 auto; }
 
-@supports (appearance: base-select) {
-  .deck-title::picker(select) { min-width: 260px; }
-}
+
 .deck-title:hover { background-color: var(--birch); border-color: var(--line); }
 
 .study-switch { margin-top: 20px; }
@@ -383,7 +401,7 @@ button.small { min-height: 36px; padding: 6px 14px; font-size: .875rem; }
 .study-toggle input[type="checkbox"]:checked { background: var(--pine); }
 .study-toggle input[type="checkbox"]:checked::after { transform: translateX(16px); }
 .study-toggle input[type="checkbox"]:focus-visible { outline: 3px solid var(--yolk); outline-offset: 2px; }
-.inline-select select { min-height: 38px; padding: 6px 36px 6px 12px; background-position: right 10px center; }
+.inline-select .select-button { min-height: 38px; padding: 6px 36px 6px 12px; background-position: right 10px center; }
 
 #cardProgress { color: var(--bark); font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; min-height: 1.5em; }
 
@@ -642,6 +660,7 @@ body.editor-readonly .danger-zone, body.editor-readonly #publishDeckBtn { displa
   padding: 0; border: 0; border-radius: var(--r-lg);
   background: var(--birch); color: var(--bark);
   box-shadow: 0 24px 60px -12px rgba(43, 33, 24, .45);
+  overflow: visible; /* let dropdown lists extend past the dialog edge */
 }
 .app-dialog::backdrop { background: rgba(43, 33, 24, .45); backdrop-filter: blur(2px); }
 .app-dialog[open] { animation: dialog-in .2s var(--ease); }
@@ -710,7 +729,8 @@ body.editor-readonly .danger-zone, body.editor-readonly #publishDeckBtn { displa
 .form-container .meta { text-align: center; margin: 6px 0 24px; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; margin-bottom: 6px; }
-.form-group input, .form-group select { width: 100%; }
+.form-group input, .form-group .select-wrap, .form-group .select-button { width: 100%; }
+.field-grid .select-wrap, .field-grid .select-button, .dialog-field .select-wrap, .dialog-field .select-button { width: 100%; }
 .form-container button { width: 100%; min-height: 48px; margin-top: 8px; }
 .form-container .switch { text-align: center; margin-top: 18px; font-size: .95rem; }
 
@@ -733,8 +753,9 @@ body.editor-readonly .danger-zone, body.editor-readonly #publishDeckBtn { displa
   }
   .brand { grid-column: 1; }
   .account { grid-column: 2; flex-direction: row; align-items: center; margin: 0; padding-left: 0; gap: 8px; }
-  .account .lang-picker span { display: none; }
-  .account select, .account button { min-height: 40px; }
+  .account .lang-picker > span:not(.select-wrap) { display: none; }
+  .account .select-button, .account button { min-height: 40px; }
+  .account .select-wrap, .account .select-button { width: auto; }
   .main { grid-column: 1 / -1; padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
 
   .primary-nav {
