@@ -2,11 +2,13 @@
 
 import * as DataManager from './data.js';
 import { isDue } from './utils.js';
+import { STARTER_STORIES, wordsIn } from './starterStories.js';
+import { langName } from './constants.js';
 import * as UI from './ui.js';
 import { setKeyboardContext, setupKeyboardListener, handleFlashcardsKeys } from './keyboard.js';
 import { initTTS, setSpeakMode, speakText } from './tts.js';
 import { MODES, KEYBOARD_CONTEXTS, SPEAK_MODES } from './constants.js';
-import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
+import { generateStoryPrompt, generateTextTokenizationPrompt, generateDeckCurationPrompt, parseStoryResponse, looksLikeStoryJson, StoryTokenizer, renderInteractiveStory, renderSelectedTokens, createDeckFromTokens, StoryTTSPlayer, renderStoryTTSControls, attachStoryTTSKeyboardShortcuts } from '../storyPromptService.js';
 import * as StoryAnalyzer from '../storyAnalyzer.js';
 import * as PublicLibrary from './publicLibrary.js';
 
@@ -314,9 +316,30 @@ function setupDeckEditorListeners() {
     UI.editorQuestion.value = '';
     UI.editorAnswer.value = '';
     if (noteInput) noteInput.value = '';
+    if (suggestHint) suggestHint.hidden = true;
     UI.editorAnswer.focus();
     refreshDecks(deck.id);
   });
+
+  // Typing a word fills in its meaning from the shared dictionary (only if the meaning is empty).
+  const suggestHint = document.getElementById('editorSuggestHint');
+  let suggestTimer = null;
+  UI.editorAnswer?.addEventListener('input', () => {
+    clearTimeout(suggestTimer);
+    if (suggestHint) suggestHint.hidden = true;
+    const word = UI.editorAnswer.value.trim();
+    if (!word || UI.editorQuestion.value.trim()) return;
+    suggestTimer = setTimeout(async () => {
+      const deck = DataManager.getDeck(currentDeckIndex);
+      const hit = await DataManager.suggestTranslation(word, deck?.learningLang, deck?.nativeLang).catch(() => null);
+      // Only fill if the user hasn't typed a meaning or changed the word meanwhile.
+      if (hit && UI.editorAnswer.value.trim() === word && !UI.editorQuestion.value.trim()) {
+        UI.editorQuestion.value = hit.translation;
+        if (suggestHint) suggestHint.hidden = false;
+      }
+    }, 400);
+  });
+  UI.editorQuestion?.addEventListener('input', () => { if (suggestHint) suggestHint.hidden = true; });
 
   document.getElementById('swapAllSidesBtn')?.addEventListener('click', async () => {
     await deckEditor.swapAllSides(DataManager.getDeck(currentDeckIndex));
@@ -420,9 +443,7 @@ function setupStoryAnalyzerListeners() {
   const storyInputMode = document.getElementById('storyInputMode');
   const storyReviewMode = document.getElementById('storyReviewMode');
   const publishStoryBtn = document.getElementById('publishStoryBtn');
-  const generatePromptBtn = document.getElementById('generatePromptBtn');
   const generateFromTextBtn = document.getElementById('generateFromTextBtn');
-  const copyPromptBtn = document.getElementById('copyPromptBtn');
   const clearStoryArchiveBtn = document.getElementById('clearStoryArchive');
   const storyArchiveList = document.getElementById('storyArchiveList');
   const storyArchiveEmpty = document.getElementById('storyArchiveEmpty');
@@ -438,6 +459,7 @@ function setupStoryAnalyzerListeners() {
     return `learningLang=${encodeURIComponent(u?.learningLang || '')}&nativeLang=${encodeURIComponent(u?.nativeLang || '')}`;
   };
   let storyArchive = [];
+  let currentSavedStoryId = null;
 
   const loadStoryArchive = async () => {
     try {
@@ -514,7 +536,10 @@ function setupStoryAnalyzerListeners() {
       });
       const saved = await res.json().catch(() => null);
       if (!res.ok) throw new Error(saved?.error || res.status);
-      if (saved?.id) storyArchive = [saved, ...storyArchive];
+      if (saved?.id) {
+        storyArchive = [saved, ...storyArchive];
+        currentSavedStoryId = saved.id;
+      }
       renderStoryArchive();
     } catch (e) {
       console.error('Failed to save story:', e);
@@ -560,6 +585,7 @@ function setupStoryAnalyzerListeners() {
 
   const openArchivedStory = (entry) => {
     if (!entry || !entry.story || !Array.isArray(entry.tokens)) return;
+    currentSavedStoryId = entry.id;
     const json = JSON.stringify({ title: entry.title, story: entry.story, tokens: entry.tokens });
     storyInput.value = json;
     analyzeStoryData(json, false, false);
@@ -584,7 +610,7 @@ function setupStoryAnalyzerListeners() {
     const data = parseStoryResponse(rawText);
 
     if (!data) {
-      toast('Invalid JSON. Make sure you pasted the AI response correctly.', 'error');
+      toast('That AI reply is incomplete. Copy the whole reply again, or ask the chat to “send the full JSON”.', 'error');
       return null;
     }
 
@@ -668,64 +694,171 @@ function setupStoryAnalyzerListeners() {
       PublicLibrary.publishCurrentStory(currentStoryData, autoLevel, autoTitle);
     }
 
+    renderMissingTranslations();
     showStoryReviewMode();
     return data;
   };
 
-  const analyzeCurrentStory = () => {
-    const sourceText = storyInput.value.trim();
-    if (!sourceText) {
-      return toast('Please paste the tokenized story JSON into the text area first.', 'error');
+  // Plain text -> story: every word gets its translation from the shared dictionary.
+  const storyFromText = async (text, { title, glossary = {} } = {}) => {
+    const words = [...new Set(wordsIn(text))];
+    let found = {};
+    try {
+      found = await DataManager.lookupWords(words);
+    } catch (e) {
+      console.error(e);
+      toast('The dictionary is unavailable right now. You can still read and add translations.', 'error');
     }
-
-    analyzeStoryData(sourceText);
+    const key = (w) => w.toLowerCase().normalize('NFC');
+    const tokens = words.map((w) => ({ text: w, translation: glossary[key(w)] || found[key(w)]?.translation || '' }));
+    return { title: title || text.trim().split(/\s+/).slice(0, 6).join(' '), story: text.trim(), tokens };
   };
 
-  generatePromptBtn?.addEventListener('click', () => {
-    const level = document.getElementById('promptLevel').value;
-    const length = document.getElementById('promptLength').value;
-    const topic = document.getElementById('promptTopic').value || 'daily life';
-
-    const prompt = generateStoryPrompt({
-      level,
-      length,
-      topic,
-      learningLang: DataManager.currentUser.learningLang,
-      nativeLang: DataManager.currentUser.nativeLang
-    });
-
-    promptOutput.value = prompt;
-  });
-
-  generateFromTextBtn?.addEventListener('click', () => {
-    const storyInput = document.getElementById('storyInput');
-    const rawText = storyInput.value.trim();
-
-    if (!rawText) {
-      toast('Paste a story in the Story Input field first!', 'error');
+  // Opens whatever is in the box: an AI reply (JSON, with or without extra chat text) or plain text.
+  const analyzeCurrentStory = async () => {
+    const sourceText = storyInput.value.trim();
+    if (!sourceText) return toast('Paste some text or an AI story first.', 'error');
+    if (looksLikeStoryJson(sourceText)) {
+      currentSavedStoryId = null;
+      analyzeStoryData(sourceText);
       return;
     }
+    analyzeStoryBtn.disabled = true;
+    analyzeStoryBtn.textContent = 'Opening…';
+    try {
+      currentSavedStoryId = null;
+      analyzeStoryData(JSON.stringify(await storyFromText(sourceText)));
+    } finally {
+      analyzeStoryBtn.disabled = false;
+      analyzeStoryBtn.textContent = 'Open story';
+    }
+  };
 
+  // Pasting opens the story straight away; no extra click needed.
+  storyInput?.addEventListener('paste', () => setTimeout(() => {
+    if (storyInput.value.trim().length > 20) analyzeCurrentStory();
+  }, 0));
+
+  // ---- Words the dictionary didn't know: fill them in, save to the story and the shared dictionary ----
+  const renderMissingTranslations = () => {
+    const box = document.getElementById('missingTranslations');
+    if (!box || !currentStoryData) return;
+    const missing = currentStoryData.tokens.filter((t) => !t.translation);
+    box.replaceChildren();
+    box.hidden = !missing.length;
+    if (!missing.length) return;
+
+    const h = document.createElement('h3');
+    h.textContent = `${missing.length} word${missing.length === 1 ? '' : 's'} not in the dictionary yet`;
+    const p = document.createElement('p');
+    p.className = 'meta';
+    p.textContent = 'Add what you know. Your translations help everyone learning this language.';
+    const form = document.createElement('form');
+    form.className = 'missing-form';
+    missing.slice(0, 40).forEach((t) => {
+      const label = document.createElement('label');
+      label.className = 'missing-row';
+      const word = document.createElement('span');
+      word.textContent = t.text;
+      const input = document.createElement('input');
+      input.dataset.word = t.text;
+      input.placeholder = 'Translation';
+      input.autocomplete = 'off';
+      label.append(word, input);
+      form.appendChild(label);
+    });
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.textContent = 'Save translations';
+    form.appendChild(save);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const filled = [...form.querySelectorAll('input')].filter((i) => i.value.trim())
+        .map((i) => ({ word: i.dataset.word, translation: i.value.trim() }));
+      if (!filled.length) return toast('Type at least one translation first.', 'error');
+      const byWord = new Map(filled.map((f) => [f.word, f.translation]));
+      const tokens = currentStoryData.tokens.map((t) => (byWord.has(t.text) ? { ...t, translation: byWord.get(t.text) } : t));
+      DataManager.contributeTranslations(filled);
+      if (currentSavedStoryId) {
+        fetch(`/api/library/stories/${currentSavedStoryId}`, { method: 'PUT', headers: authJson(), body: JSON.stringify({ tokens }) })
+          .then((r) => r.ok && r.json()).then((row) => { if (row) storyArchive = storyArchive.map((x) => (x.id === row.id ? row : x)); })
+          .catch(() => {});
+      }
+      analyzeStoryData(JSON.stringify({ title: currentStoryData.title, story: currentStoryData.story, tokens }), false);
+      toast(`Saved ${filled.length} translation${filled.length === 1 ? '' : 's'}. Thanks for helping other learners!`, 'success');
+    });
+    box.append(h, p, form);
+  };
+
+  // ---- Starter stories for the current language ----
+  const renderStarterStories = () => {
+    const panel = document.getElementById('starterStoriesPanel');
+    const list = document.getElementById('starterStoryList');
+    const lang = DataManager.currentUser?.learningLang;
+    const stories = STARTER_STORIES.filter((st) => st.lang === lang && DataManager.currentUser?.nativeLang === 'en');
+    if (!panel || !list) return;
+    panel.hidden = !stories.length;
+    list.replaceChildren();
+    stories.forEach((st) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'starter-story';
+      const level = document.createElement('span');
+      level.className = 'starter-level';
+      level.textContent = st.level;
+      const title = document.createElement('strong');
+      title.textContent = st.title;
+      const preview = document.createElement('span');
+      preview.className = 'meta';
+      preview.textContent = `${st.story.replace(/\s+/g, ' ').slice(0, 70)}…`;
+      b.append(level, title, preview);
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          currentSavedStoryId = null;
+          // Starter stories aren't added to Past stories; they're always here.
+          analyzeStoryData(JSON.stringify(await storyFromText(st.story, { title: st.title, glossary: st.glossary })), false);
+        } finally {
+          b.disabled = false;
+        }
+      });
+      list.appendChild(b);
+    });
+    const label = document.getElementById('storyInputLabel');
+    if (label) label.textContent = `Read any ${langName(lang)} text`;
+  };
+  renderStarterStories();
+
+  const buildStoryPrompt = () => generateStoryPrompt({
+    level: document.getElementById('promptLevel').value,
+    length: document.getElementById('promptLength').value,
+    topic: document.getElementById('promptTopic').value || 'daily life',
+    learningLang: DataManager.currentUser.learningLang,
+    nativeLang: DataManager.currentUser.nativeLang,
+  });
+
+  // The window is opened first (inside the click) so pop-up blockers allow it.
+  const copyAndOpen = async (prompt, url) => {
+    const win = window.open(url, '_blank', 'noopener');
+    promptOutput.value = prompt;
+    await copyToClipboard(prompt, 'Prompt copied. Paste it into the chat, then paste the reply back here.');
+    if (!win) toast('Your browser blocked the new tab. The prompt is copied; open the chat yourself.', 'info');
+  };
+  document.getElementById('copyToChatGPT')?.addEventListener('click', () => copyAndOpen(buildStoryPrompt(), 'https://chatgpt.com/'));
+  document.getElementById('copyToClaude')?.addEventListener('click', () => copyAndOpen(buildStoryPrompt(), 'https://claude.ai/new'));
+
+  generateFromTextBtn?.addEventListener('click', () => {
+    const rawText = storyInput.value.trim();
+    if (!rawText) return toast('Paste your text in the box above first.', 'error');
     const level = document.getElementById('promptLevel').value;
-    // Use the Level select to decide whether to simplify.
-    // If user selected the "Original" option, keep the original text (no simplification).
-    const simplify = level !== 'Original';
-
     const prompt = generateTextTokenizationPrompt({
       rawText,
       level,
       learningLang: DataManager.currentUser.learningLang,
       nativeLang: DataManager.currentUser.nativeLang,
-      simplify
+      simplify: level !== 'Original',
     });
-
-    promptOutput.value = prompt;
-    toast('Prompt generated! Copy it and paste the AI response back to analyze.', 'info');
-  });
-
-  copyPromptBtn?.addEventListener('click', () => {
-    if (!promptOutput.value) return toast('Generate a prompt first.', 'error');
-    copyToClipboard(promptOutput.value, 'Prompt copied. Paste it into your AI chat.');
+    copyAndOpen(prompt, 'https://chatgpt.com/');
   });
 
   analyzeStoryBtn?.addEventListener('click', analyzeCurrentStory);

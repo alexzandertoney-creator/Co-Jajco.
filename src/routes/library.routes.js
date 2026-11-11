@@ -22,6 +22,7 @@ router.get('/stories', authMiddleware, storiesController.listStories);
 router.post('/stories', authMiddleware, storiesController.saveStory);
 router.post('/stories/import', authMiddleware, storiesController.importStories);
 router.delete('/stories', authMiddleware, storiesController.clearStories);
+router.put('/stories/:storyId', authMiddleware, storiesController.updateStoryTokens);
 router.delete('/stories/:storyId', authMiddleware, storiesController.deleteStory);
 
 module.exports = router;

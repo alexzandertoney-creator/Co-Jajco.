@@ -1,4 +1,5 @@
 const db = require('../config/db.js');
+const dictionary = require('../services/dictionary.service.js');
 
 // Private, per-user story archive ("Past stories"), so it follows the account
 // across devices instead of living in one browser's localStorage.
@@ -90,6 +91,11 @@ const saveStory = async (req, res) => {
     const s = validate(req.body);
     if (typeof s === 'string') return res.status(400).json({ error: s });
     const row = await insert(req.user.id, s);
+    // New stories also grow the shared dictionary (word + translation only, anonymous).
+    if (row) {
+      dictionary.contribute(s.learningLang, s.nativeLang, s.tokens.map((t) => ({ word: t.text, translation: t.translation })))
+        .catch((err) => console.error('Dictionary contribution failed:', err));
+    }
     // A repeat of an already-saved client_id is not an error: return 200 with no new row.
     res.status(row ? 201 : 200).json(row || { duplicate: true });
   } catch (err) {
@@ -129,6 +135,27 @@ const deleteStory = async (req, res) => {
   }
 };
 
+// Replace a saved story's word list (used when the learner fills in missing translations).
+const updateStoryTokens = async (req, res) => {
+  try {
+    await ensureStoriesTable();
+    const tokens = Array.isArray(req.body?.tokens) ? req.body.tokens : null;
+    if (!tokens || tokens.length > MAX_TOKENS) return res.status(400).json({ error: 'Invalid word list.' });
+    const clean = tokens
+      .filter((t) => t && typeof t.text === 'string' && t.text.trim())
+      .map((t) => ({ text: t.text, translation: typeof t.translation === 'string' ? t.translation.slice(0, 160) : '' }));
+    const result = await db.query(
+      `UPDATE user_stories SET tokens = $1 WHERE id = $2 AND user_id = $3 RETURNING ${FIELDS}`,
+      [JSON.stringify(clean), Number(req.params.storyId), req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Story not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating story:', err);
+    res.status(500).json({ error: 'Could not update the story' });
+  }
+};
+
 // "Clear all" for one language pair only.
 const clearStories = async (req, res) => {
   try {
@@ -146,4 +173,4 @@ const clearStories = async (req, res) => {
   }
 };
 
-module.exports = { listStories, saveStory, importStories, deleteStory, clearStories };
+module.exports = { listStories, saveStory, importStories, deleteStory, clearStories, updateStoryTokens };

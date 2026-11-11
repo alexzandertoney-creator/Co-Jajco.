@@ -148,11 +148,25 @@ If the topic is blank, choose practical everyday vocabulary.
 }
 
 /**
+ * Pull the JSON object out of an AI reply: tolerates ```json fences and any chat text
+ * before or after it ("Sure! Here's your story: {...} Enjoy!").
+ */
+export function extractJson(text) {
+  const s = String(text || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  return start >= 0 && end > start ? s.slice(start, end + 1) : s;
+}
+
+/** True if the pasted text looks like an AI story reply rather than plain text to read. */
+export const looksLikeStoryJson = (text) => /"story"\s*:/.test(text) && /"tokens"\s*:/.test(text);
+
+/**
  * Parse AI response JSON
  */
 export function parseStoryResponse(jsonString) {
   try {
-    const data = JSON.parse(jsonString);
+    const data = JSON.parse(extractJson(jsonString));
     
     if (!data.story || !Array.isArray(data.tokens)) {
       throw new Error('Invalid story format: missing story or tokens array');
@@ -382,7 +396,7 @@ export function renderInteractiveStory(containerSelector, tokenizer, onTokenClic
         tokenTextEl.className = 'story-token-text';
         tokenTextEl.textContent = matchedOriginal;
 
-        const translation = tokenizer.getTranslation(tokenText) || 'No translation available';
+        const translation = tokenizer.getTranslation(tokenText) || 'Not in the dictionary yet';
         const translationEl = document.createElement('span');
         translationEl.className = 'story-translation-bubble';
         translationEl.textContent = translation;

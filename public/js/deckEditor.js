@@ -88,6 +88,7 @@ export class DeckEditor {
     if (!deck || deck.id === 'master-vocab') return false;
 
     const result = await DataManager.addCardToDeck(deck.id, question, answer, note);
+    if (result) DataManager.contributeTranslations([{ word: answer, translation: question }], deck.learningLang, deck.nativeLang);
     if (result) {
       editorQuestion.value = '';
       editorAnswer.value = '';
@@ -124,6 +125,7 @@ export class DeckEditor {
 
     const ok = await DataManager.updateCard(deck.id, index, newQuestion, newAnswer, newNote);
     if (!ok) toast('Couldn’t save your changes. Try again.', 'error');
+    else DataManager.contributeTranslations([{ word: newAnswer, translation: newQuestion }], deck.learningLang, deck.nativeLang);
     this.render(DataManager.filteredDecks, this.currentDeckIndex);
   }
 
@@ -247,6 +249,7 @@ export class DeckEditor {
       .filter(card => card.question && card.answer);
     if (!normalizedCards.length) return null;
 
+    DataManager.contributeTranslations(normalizedCards.map((c) => ({ word: c.answer, translation: c.question })), learningLang, nativeLang);
     // One request for the whole deck (this used to be one PUT per card, with delays).
     return DataManager.createDeck(deckName || `AI deck ${new Date().toLocaleDateString()}`, learningLang, nativeLang, normalizedCards);
   }

@@ -355,6 +355,7 @@
         <input id="editorNote" placeholder="Note or example sentence (optional)" aria-label="Note or example sentence" autocomplete="off" />
         <button type="submit" id="editorAdd">Add card</button>
       </div>
+      <p id="editorSuggestHint" class="meta suggest-hint" hidden>Meaning filled in from the shared dictionary. Change it if you like.</p>
     </form>
 
     <details class="panel">
@@ -442,16 +443,28 @@
     <div id="storyInputMode" class="story-mode">
       <div class="section-head">
         <h2>Stories</h2>
-        <button id="analyzeStory">Open story</button>
       </div>
 
-      <div class="panel">
-        <label for="storyInput" class="field-label">Paste your story JSON</label>
-        <textarea id="storyInput" class="tall" placeholder="Paste the JSON your AI chat returned"></textarea>
+      <section class="panel starter-stories" id="starterStoriesPanel" hidden>
+        <div class="section-head">
+          <div>
+            <h3>Starter stories</h3>
+            <p class="meta">Short stories to read right away. Tap any word to see what it means.</p>
+          </div>
+        </div>
+        <div id="starterStoryList" class="starter-story-list"></div>
+      </section>
+
+      <div class="panel paste-panel">
+        <label for="storyInput" class="field-label" id="storyInputLabel">Read your own text</label>
+        <p class="meta" id="storyInputHelp">Paste any text, or a story from your AI chat. It opens straight away with translations.</p>
+        <textarea id="storyInput" class="tall" placeholder="e.g. a news paragraph, a song, a message from a friend, or your AI chat’s reply"></textarea>
+        <div class="actions"><button id="analyzeStory">Open story</button></div>
       </div>
 
       <details class="panel prompt-generator">
-        <summary>Generate a story prompt</summary>
+        <summary>Get a new story from an AI chat</summary>
+        <p class="meta">Pick a level and topic, then copy the prompt into ChatGPT or Claude. Paste the reply in the box above and it opens by itself.</p>
         <div class="field-grid">
           <label>Level
             <select id="promptLevel">
@@ -477,11 +490,14 @@
           </label>
         </div>
         <div class="actions">
-          <button id="generatePromptBtn">Generate prompt</button>
-          <button id="generateFromTextBtn" class="ghost">From my own text</button>
-          <button id="copyPromptBtn" class="ghost">Copy</button>
+          <button id="copyToChatGPT" type="button">Copy prompt &amp; open ChatGPT</button>
+          <button id="copyToClaude" type="button" class="ghost">Copy &amp; open Claude</button>
+          <button id="generateFromTextBtn" type="button" class="ghost">Have AI translate my pasted text</button>
         </div>
-        <textarea id="promptOutput" placeholder="Your prompt appears here"></textarea>
+        <details class="prompt-preview">
+          <summary>See the prompt</summary>
+          <textarea id="promptOutput" readonly placeholder="The prompt appears here once copied"></textarea>
+        </details>
       </details>
 
       <div class="panel story-archive-panel">
@@ -504,22 +520,19 @@
 
       <div class="story-review-layout">
         <div class="story-review-container">
-          <div class="story-toolbar">
-            <button id="playPauseStory">Play</button>
-            <span id="storyPlaybackStatus" class="meta">Word <strong id="currentTokenIndex">0</strong></span>
-            <span class="meta">Use ← → to move between words</span>
-          </div>
           <div class="story-display" id="storyDisplay"></div>
         </div>
 
         <aside class="story-flashcards-panel">
+          <div id="missingTranslations" class="missing-panel" hidden></div>
           <h3>Your words</h3>
-          <ul id="unknownWordsList"></ul>
           <div id="selectedTokens"></div>
           <button id="createDeckFromStoryTokens">Create flashcard deck</button>
         </aside>
       </div>
     </div>
+
+    <p class="data-credit meta">Word translations include data from <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> (CC BY-SA 4.0, via <a href="https://kaikki.org/" target="_blank" rel="noopener">kaikki.org</a>) and <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener">FrequencyWords</a>, plus translations shared by learners.</p>
 
     <div id="translationTooltip" class="translation-tooltip" style="display: none;">
       <span id="tooltipWord"></span>

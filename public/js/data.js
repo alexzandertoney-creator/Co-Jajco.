@@ -566,3 +566,36 @@ export async function setDeckCards(deckId, cards) {
     return false;
   }
 }
+
+// ---------- Shared dictionary ----------
+
+const dictHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+/** { [normalizedWord]: { translation, lemma } } for the current language pair. */
+export async function lookupWords(words, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const res = await fetch('/api/dictionary/lookup', {
+    method: 'POST', headers: dictHeaders(), body: JSON.stringify({ learningLang, nativeLang, words }),
+  });
+  if (!res.ok) throw new Error(`Dictionary lookup failed: ${res.status}`);
+  return res.json();
+}
+
+/** Best translation for one word, or null (editor suggestions). */
+export async function suggestTranslation(word, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const q = new URLSearchParams({ learningLang, nativeLang, word });
+  const res = await fetch(`/api/dictionary/suggest?${q}`, { headers: dictHeaders() });
+  const data = res.ok ? await res.json() : {};
+  return data.translation ? data : null;
+}
+
+/**
+ * Adds word pairs to the shared dictionary, anonymously (word + translation only).
+ * Fire-and-forget: a failure here must never block saving the user's own cards.
+ */
+export function contributeTranslations(pairs, learningLang = currentUser?.learningLang, nativeLang = currentUser?.nativeLang) {
+  const clean = (pairs || []).filter((p) => p?.word && p?.translation);
+  if (!clean.length || !learningLang || !nativeLang) return;
+  fetch('/api/dictionary/contribute', {
+    method: 'POST', headers: dictHeaders(), body: JSON.stringify({ learningLang, nativeLang, pairs: clean }),
+  }).catch(() => { /* best effort */ });
+}
