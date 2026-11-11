@@ -5,7 +5,7 @@
 
 const cache = new Map(); // shard -> Promise<object>
 const norm = (s) => String(s ?? '').toLowerCase().normalize('NFC').replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '').trim();
-const shardOf = (w) => [...w.normalize('NFD').replace(/\p{M}/gu, '').replace(/ł/g, 'l')].filter((c) => /[a-z]/.test(c)).slice(0, 2).join('').padEnd(2, '_'); // ASCII file names
+export const shardOf = (w) => [...w.normalize('NFD').replace(/\p{M}/gu, '').replace(/ł/g, 'l')].filter((c) => /[a-z]/.test(c)).slice(0, 2).join('').padEnd(2, '_'); // ASCII file names
 
 function loadShard(s) {
   if (!cache.has(s)) {
