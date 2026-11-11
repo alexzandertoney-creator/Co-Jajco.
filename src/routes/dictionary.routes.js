@@ -8,5 +8,6 @@ const router = express.Router();
 router.post('/lookup', authMiddleware, dictionaryController.lookup);
 router.get('/suggest', authMiddleware, dictionaryController.suggest);
 router.post('/contribute', authMiddleware, dictionaryController.contribute);
+router.get('/search', authMiddleware, dictionaryController.search);
 
 module.exports = router;

@@ -1,10 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-// Get JWT secret with fallback for development
-const getJWTSecret = () => {
-  const secret = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
-  return secret;
-};
+const { getJWTSecret } = require('../config/jwt.js');
 
 const authMiddleware = (req, res, next) => {
   const header = req.headers.authorization;
@@ -23,8 +19,15 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: 'Token missing' });
   }
 
+  let secret;
   try {
-    const decoded = jwt.verify(token, getJWTSecret());
+    secret = getJWTSecret();
+  } catch (err) {
+    console.error(err.message);
+    return res.status(500).json({ error: 'The server is not configured correctly. Please try again later.' });
+  }
+  try {
+    const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();
   } catch (err) {

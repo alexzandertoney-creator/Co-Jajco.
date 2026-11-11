@@ -70,8 +70,10 @@
           f.options.forEach((o) => input.add(new Option(o, o)));
         } else {
           input = document.createElement('input');
+          if (f.type) input.type = f.type;
+          if (f.autocomplete) input.setAttribute('autocomplete', f.autocomplete);
           input.placeholder = f.placeholder || '';
-          input.autocomplete = 'off';
+          if (!f.autocomplete) input.autocomplete = 'off';
           input.required = f.required !== false;
         }
         input.value = f.value ?? '';
@@ -131,6 +133,6 @@
   };
 
   // Several fields at once; resolves with an array of values, or null.
-  window.formDialog = (title, fields, { confirmLabel = 'Save', message = '' } = {}) =>
-    openDialog({ title, message, fields, confirmLabel });
+  window.formDialog = (title, fields, { confirmLabel = 'Save', message = '', danger = false } = {}) =>
+    openDialog({ title, message, fields, confirmLabel, danger });
 })();

@@ -21,7 +21,7 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.token) {
       // Same message for unknown email and wrong password: don't reveal which accounts exist.
-      toast(res.status >= 500 ? "The server had a problem. Try again in a moment." : "Email or password is incorrect.", "error");
+      toast(res.status === 429 ? data.error : res.status >= 500 ? "The server had a problem. Try again in a moment." : "Email or password is incorrect.", "error");
       return;
     }
     localStorage.setItem("token", data.token);

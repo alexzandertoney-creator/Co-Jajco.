@@ -4,7 +4,7 @@
 import { MATCH_GAME } from '../constants.js';
 import { shuffleArray } from '../utils.js';
 import { matchGrid, matchTimerEl, matchFeedback } from '../ui.js';
-import { updateCardStatsFromCard } from '../data.js';
+import { recordPractice } from '../data.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -65,7 +65,8 @@ export class MatchMode {
       this.selected = [];
       this.pairsLeft--;
       matchFeedback.textContent = 'Match!';
-      updateCardStatsFromCard(a.card, true);
+      // A match is a game, not a recall test: it counts toward the daily goal but doesn't move the card's review date.
+      recordPractice();
       this.updatePairs();
       if (this.pairsLeft === 0) this.finish(true);
     } else {

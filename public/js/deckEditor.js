@@ -22,13 +22,15 @@ export class DeckEditor {
       editorAnswer.placeholder = `${langName(deck.learningLang)} word`;
       editorQuestion.placeholder = `Meaning in ${langName(deck.nativeLang)}`;
     }
-    // Master Vocab is a read-only roll-up of every deck, so hide the editing tools.
+    // "All my words" is a read-only roll-up of every deck, so hide the editing tools.
     document.body.classList.toggle('editor-readonly', !deck || isMaster);
 
     if (!deck) {
       cardList.appendChild(hint('Create a deck with “+ New deck” to start adding cards.'));
       return;
     }
+    const count = document.getElementById('cardCount');
+    if (count) count.textContent = deck.cards.length ? `· ${deck.cards.length}` : '';
     if (!deck.cards.length) {
       cardList.appendChild(hint('No cards yet. Add your first one above.'));
       return;
@@ -78,6 +80,7 @@ export class DeckEditor {
       }
       cardList.appendChild(li);
     });
+    filterCards();
   }
 
   /**
@@ -275,4 +278,20 @@ function hint(text) {
   li.className = 'empty-hint';
   li.textContent = text;
   return li;
+}
+
+// Filters the visible card rows by the "Find a card" box (word, meaning or note).
+export function filterCards() {
+  const q = (document.getElementById('cardSearch')?.value || '').trim().toLowerCase();
+  let shown = 0;
+  cardList.querySelectorAll('li.card-item').forEach((li) => {
+    const hit = !q || li.textContent.toLowerCase().includes(q);
+    li.hidden = !hit;
+    if (hit) shown++;
+  });
+  let none = cardList.querySelector('.no-match');
+  if (q && !shown) {
+    if (!none) { none = hint(''); none.classList.add('no-match'); cardList.appendChild(none); }
+    none.textContent = `No cards match “${q}”.`;
+  } else none?.remove();
 }

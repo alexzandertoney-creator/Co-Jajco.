@@ -13,6 +13,7 @@ const SEEDS = {
   'es:en': () => require('../data/dictionary/es-en.json'),
   'fr:en': () => require('../data/dictionary/fr-en.json'),
   'it:en': () => require('../data/dictionary/it-en.json'),
+  'en:pl': () => require('../data/dictionary/en-pl.json'),
 };
 
 let tableReady = null;
@@ -129,4 +130,34 @@ async function contribute(learningLang, nativeLang, pairs) {
   return rows.length;
 }
 
-module.exports = { lookup, contribute, normalize };
+/**
+ * Search both ways: words starting with q (Polish -> English) and translations
+ * containing q (English -> Polish). Exact and base-form entries come first.
+ */
+async function search(learningLang, nativeLang, q) {
+  const term = String(q ?? '').trim().toLowerCase().normalize('NFC').slice(0, 60);
+  if (term.length < 2) return [];
+  await ensureTables();
+  await ensureSeeded(learningLang, nativeLang);
+  const like = term.replace(/[\\%_]/g, '\\$&');
+  const result = await db.query(
+    `SELECT DISTINCT ON (word) word, translation, lemma,
+            CASE WHEN word = $3 THEN 0
+                 WHEN word LIKE $4 || '%' AND lemma IS NULL THEN 1
+                 WHEN word LIKE $4 || '%' THEN 2
+                 WHEN lower(translation) = $3 THEN 3
+                 ELSE 4 END AS rank
+       FROM dictionary_entries
+      WHERE learning_lang = $1 AND native_lang = $2
+        AND (word LIKE $4 || '%' OR lower(translation) LIKE '%' || $4 || '%')
+      ORDER BY word, uses DESC, id
+      LIMIT 400`,
+    [learningLang, nativeLang, term, like]
+  );
+  return result.rows
+    .sort((a, b) => a.rank - b.rank || a.word.length - b.word.length || a.word.localeCompare(b.word))
+    .slice(0, 30)
+    .map(({ word, translation, lemma }) => ({ word, translation, lemma }));
+}
+
+module.exports = { lookup, contribute, search, normalize };

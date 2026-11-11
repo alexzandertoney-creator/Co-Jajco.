@@ -67,6 +67,9 @@ async function init() {
   const dueIn = (deck) => deck.cards.filter(c => isDue(c)).length;
   deckSelect.replaceChildren(new Option(`All decks`, ALL));
   decks.forEach(d => deckSelect.add(new Option(`${d.name}${dueIn(d) ? ` (${dueIn(d)} due)` : ''}`, String(d.id))));
+  // "Review this deck" from Flashcards preselects that deck.
+  const wanted = new URLSearchParams(location.search).get('deck');
+  if (wanted && decks.some((d) => String(d.id) === wanted)) deckSelect.value = wanted;
   deckSelect.addEventListener('change', buildQueue);
   buildQueue();
 }
@@ -116,7 +119,7 @@ function answer(correct) {
   if (!card.stats) card.stats = { correct: 0, incorrect: 0 };
   card.stats[correct ? 'correct' : 'incorrect']++;
   scheduleCard(card, correct);
-  saveDeck(deck);
+  saveCard(deck, card);
   recordAnswer();
   reviewedThisSession++;
 
@@ -167,23 +170,24 @@ function whenText(ts) {
   return `in ${days} days`;
 }
 
-// Saves per deck run one after another so an older PUT can't land after a newer one.
-const saveChains = new Map();
-function saveDeck(deck) {
-  const prev = saveChains.get(deck.id) || Promise.resolve();
-  const next = prev.then(async () => {
+// Saves just the answered card's progress (no whole-deck rewrite), one request at a time.
+let saveChain = Promise.resolve();
+function saveCard(deck, card) {
+  saveChain = saveChain.then(async () => {
     try {
-      const res = await fetch(`/api/library/decks/${deck.id}`, {
-        method: 'PUT',
+      const res = await fetch(`/api/library/decks/${deck.id}/card`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ cards: deck.cards }),
+        body: JSON.stringify({
+          match: { question: card.question, answer: card.answer },
+          set: { stats: card.stats, srs: card.srs, lastReviewed: card.lastReviewed },
+        }),
       });
       if (!res.ok) throw new Error(res.status);
     } catch {
       toast('Couldn’t save your progress. Check your connection.', 'error');
     }
   });
-  saveChains.set(deck.id, next);
 }
 
 function updateBadge() {

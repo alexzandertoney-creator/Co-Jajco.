@@ -1,4 +1,5 @@
 const db = require('../config/db.js');
+const reports = require('../services/reports.service.js');
 
 const getAuthorName = async (userId) => {
   try {
@@ -14,6 +15,7 @@ const getAuthorName = async (userId) => {
 
 const listPublicDecks = async (req, res) => {
   try {
+    await reports.ensureReportsTable();
     const { learningLang, nativeLang, level, limit = 50 } = req.query;
     const where = [];
     const values = [];
@@ -32,8 +34,8 @@ const listPublicDecks = async (req, res) => {
       values.push(level);
     }
 
-    const query = `SELECT id, name, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", level, cards, author, created_at FROM public_decks${where.length ? ' WHERE ' + where.join(' AND ') : ''} ORDER BY created_at DESC LIMIT $${idx}`;
-    values.push(Number(limit));
+    const query = `SELECT id, name, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", level, cards, author, created_at FROM public_decks WHERE ${[reports.notHidden('deck', 'public_decks'), ...where].join(' AND ')} ORDER BY created_at DESC LIMIT $${idx}`;
+    values.push(Math.min(Number(limit) || 50, 200));
 
     const result = await db.query(query, values);
     res.json(result.rows);
@@ -68,6 +70,7 @@ const publishDeck = async (req, res) => {
 
 const listPublicStories = async (req, res) => {
   try {
+    await reports.ensureReportsTable();
     const { learningLang, nativeLang, level, limit = 50 } = req.query;
     const where = [];
     const values = [];
@@ -86,8 +89,8 @@ const listPublicStories = async (req, res) => {
       values.push(level);
     }
 
-    const query = `SELECT id, title, story, tokens, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", level, author, created_at FROM public_stories${where.length ? ' WHERE ' + where.join(' AND ') : ''} ORDER BY created_at DESC LIMIT $${idx}`;
-    values.push(Number(limit));
+    const query = `SELECT id, title, story, tokens, "learning_lang" AS "learningLang", "native_lang" AS "nativeLang", level, author, created_at FROM public_stories WHERE ${[reports.notHidden('story', 'public_stories'), ...where].join(' AND ')} ORDER BY created_at DESC LIMIT $${idx}`;
+    values.push(Math.min(Number(limit) || 50, 200));
 
     const result = await db.query(query, values);
     res.json(result.rows);
@@ -261,6 +264,56 @@ const deleteUserDeck = async (req, res) => {
   }
 };
 
+/**
+ * Update one card's progress (stats / review schedule) without rewriting the deck.
+ * Body: { match: { question, answer }, set: { stats?, srs?, lastReviewed? } }
+ * Done inside one UPDATE, so answers saved at the same time from two devices (or two
+ * cards in quick succession) can't overwrite each other, unlike re-saving the whole deck.
+ */
+const PROGRESS_FIELDS = ['stats', 'srs', 'lastReviewed'];
+const updateCardProgress = async (req, res) => {
+  try {
+    const { match, set } = req.body || {};
+    if (!match || typeof match.question !== 'string' || typeof match.answer !== 'string' || !set || typeof set !== 'object') {
+      return res.status(400).json({ error: 'Invalid card update' });
+    }
+    const patch = Object.fromEntries(Object.entries(set).filter(([k]) => PROGRESS_FIELDS.includes(k)));
+    if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update' });
+
+    const result = await db.query(
+      `UPDATE user_decks SET
+         cards = (
+           SELECT COALESCE(jsonb_agg(
+             CASE WHEN e->>'question' = $3 AND e->>'answer' = $4 THEN e || $5::jsonb ELSE e END
+             ORDER BY i), '[]'::jsonb)
+           FROM jsonb_array_elements(cards) WITH ORDINALITY AS t(e, i)
+         ),
+         updated_at = now()
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [req.params.deckId, req.user.id, match.question, match.answer, JSON.stringify(patch)]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Deck not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error updating card progress:', err);
+    res.status(500).json({ error: 'Unable to save progress' });
+  }
+};
+
+// POST /report { kind: 'deck' | 'story', id, reason? }
+const reportContent = async (req, res) => {
+  try {
+    const { kind, id, reason } = req.body || {};
+    if (!['deck', 'story'].includes(kind) || !Number.isInteger(Number(id))) return res.status(400).json({ error: 'Invalid report' });
+    await reports.report(kind, Number(id), req.user.id, reason);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error saving report:', err);
+    res.status(500).json({ error: 'Could not send the report' });
+  }
+};
+
 module.exports = {
   listPublicDecks,
   publishDeck,
@@ -269,5 +322,7 @@ module.exports = {
   getUserDecks,
   createUserDeck,
   updateUserDeck,
-  deleteUserDeck
+  updateCardProgress,
+  deleteUserDeck,
+  reportContent
 };

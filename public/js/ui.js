@@ -21,7 +21,6 @@ export const speakBackBtn = document.getElementById('speakBackBtn');
 export const correctBtn = document.getElementById('correctBtn');
 export const incorrectBtn = document.getElementById('incorrectBtn');
 export const flashShuffleToggle = document.getElementById('flashShuffleToggle');
-export const studyModeToggle = document.getElementById('studyModeToggle');
 export const speakModeSelect = document.getElementById('speakMode');
 export const cardProgress = document.getElementById('cardProgress');
 
@@ -119,12 +118,6 @@ export function renderMode(mode) {
   });
 }
 
-/**
- * Update study mode styling
- */
-export function updateStudyControls(studyMode) {
-  document.body.classList.toggle('study-mode', studyMode);
-}
 
 /**
  * Update deck select dropdown

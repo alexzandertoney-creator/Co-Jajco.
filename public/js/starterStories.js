@@ -37,6 +37,18 @@ export const STARTER_STORIES = [
     glossary: { 'paweł': 'Paweł (name)', grzyby: 'mushrooms (na grzyby = mushroom picking)', 'wsią': 'the village', pewnego: 'one (pewnego ranka = one morning)', 'zbierał': 'was picking', borowiki: 'porcini mushrooms', 'usłyszał': 'heard', 'kroki': 'footsteps', 'odwrócił': 'turned around', 'włochatą': 'hairy', 'postać': 'figure', stworzenie: 'creature', 'przyglądało': 'was watching', 'ciekawością': 'curiosity', 'podniosło': 'raised', 'przywitać': 'to say hello', 'wyszeptał': 'whispered', jajco: '"egg" (playful; Co? Jajco! = What? An egg!)', 'zniknęło': 'disappeared', pniu: 'tree stump', kanapkę: 'sandwich', kanapki: 'the sandwich', 'jajkiem': 'egg', 'odpowiedziało': 'answered', 'tamtej': 'that' },
   },
 
+  // ---------- English (for Polish speakers) ----------
+  {
+    lang: 'en', native: 'pl', level: 'A1', title: 'At the market',
+    story: 'On Saturday morning, Tom goes to the market. He buys fresh bread, eggs and apples. The man at the stall is very friendly.\n"How much are the apples?" asks Tom.\n"Two pounds a kilo," says the man.\nTom buys two kilos and goes home. He makes a big breakfast for his family.',
+    glossary: { tom: 'Tom (imię)', stall: 'stragan', 'pounds': 'funty (waluta)', kilo: 'kilogram', kilos: 'kilogramy', 'how': 'jak', much: 'dużo (how much = ile)', goes: 'idzie', says: 'mówi', asks: 'pyta', he: 'on', his: 'jego', at: 'przy', on: 'w (on Saturday = w sobotę)', the: '(przedimek określony)', a: '(przedimek nieokreślony)', are: 'są', is: 'jest', to: 'do', for: 'dla', and: 'i', very: 'bardzo', home: 'do domu', makes: 'robi', big: 'duży', two: 'dwa' },
+  },
+  {
+    lang: 'en', native: 'pl', level: 'A2', title: 'A rainy weekend in London',
+    story: 'Last weekend it rained all the time, so we stayed inside most of the day. On Saturday we visited the British Museum, which was full of tourists. In the evening we watched an old film and ate fish and chips. On Sunday the sun came out for an hour, and we walked along the river. It was short, but it was the best part of the weekend.',
+    glossary: { rained: 'padało', 'british': 'brytyjskie', museum: 'muzeum', which: 'które', 'full': 'pełne', tourists: 'turyści', ate: 'zjedliśmy', 'chips': 'frytki (fish and chips = ryba z frytkami)', fish: 'ryba', came: 'wyszło (came out)', out: 'na zewnątrz', along: 'wzdłuż', best: 'najlepsza', part: 'część', last: 'ostatni', it: 'to', so: 'więc', we: 'my', inside: 'w środku', most: 'większość', of: '(dopełniacz: "z", "czegoś")', was: 'był / była', in: 'w', an: '(przedimek nieokreślony)', old: 'stary', for: 'na', hour: 'godzina', but: 'ale', all: 'cały', time: 'czas', day: 'dzień', london: 'Londyn', evening: 'wieczór' },
+  },
+
   // ---------- Spanish ----------
   {
     lang: 'es', level: 'A1', title: 'En el mercado',

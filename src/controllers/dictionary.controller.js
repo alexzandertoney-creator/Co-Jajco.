@@ -40,4 +40,16 @@ const contribute = async (req, res) => {
   }
 };
 
-module.exports = { lookup, suggest, contribute };
+// GET ?learningLang&nativeLang&q -> [{ word, translation, lemma }]
+const search = async (req, res) => {
+  try {
+    const { learningLang, nativeLang, q } = req.query;
+    if (!langsOk(learningLang, nativeLang)) return res.status(400).json({ error: 'Invalid search.' });
+    res.json(await dictionary.search(learningLang, nativeLang, q));
+  } catch (err) {
+    console.error('Dictionary search error:', err);
+    res.status(500).json({ error: 'Dictionary unavailable' });
+  }
+};
+
+module.exports = { lookup, suggest, contribute, search };

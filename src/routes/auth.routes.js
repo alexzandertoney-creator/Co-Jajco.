@@ -7,6 +7,8 @@ const router = express.Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.put('/me/password', authMiddleware, authController.changePassword);
+router.delete('/me', authMiddleware, authController.deleteAccount);
 
 router.get('/me', authMiddleware, async (req, res) => {
   try {

@@ -1,4 +1,14 @@
-import { recommendedVocabSets } from "./recommendedSets.js";
+import { recommendedVocabSets as baseSets } from "./recommendedSets.js";
+
+// Polish speakers learning English get the Polish starter decks reversed
+// (cards: question = meaning in the language you speak, answer = word you're learning).
+const recommendedVocabSets = [
+  ...baseSets,
+  ...baseSets.filter((s) => s.learningLang === "pl" && s.nativeLang === "en").map((s) => ({
+    ...s, learningLang: "en", nativeLang: "pl",
+    cards: s.cards.map((c) => ({ question: c.answer, answer: c.question })),
+  })),
+];
 import { loadProfile } from "./js/profile.js";
 import { renderIdentity } from "./js/home.js";
 

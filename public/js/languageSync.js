@@ -13,6 +13,11 @@
       const res = await fetch('/api/auth/me', { headers: authHeader() });
       if (res.ok) {
         const user = await res.json();
+        // Only languages the app has content for, given the language you speak
+        // (kept in sync with LANGUAGE_PAIRS in js/constants.js).
+        const pairs = { en: ['pl', 'es', 'fr', 'it'], pl: ['en'] };
+        const allowed = pairs[user.nativeLang] || pairs.en;
+        [...sel.options].forEach((o) => { if (!allowed.includes(o.value) && o.value !== user.learningLang) o.remove(); });
         if (user.learningLang) sel.value = user.learningLang;
       }
     } catch { /* page scripts report connection problems */ }

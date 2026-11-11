@@ -10,11 +10,13 @@ router.get('/public-decks', libraryController.listPublicDecks);
 router.post('/public-decks', authMiddleware, libraryController.publishDeck);
 router.get('/public-stories', libraryController.listPublicStories);
 router.post('/public-stories', authMiddleware, libraryController.publishStory);
+router.post('/report', authMiddleware, libraryController.reportContent);
 
 // User deck endpoints (private)
 router.get('/decks', authMiddleware, libraryController.getUserDecks);
 router.post('/decks', authMiddleware, libraryController.createUserDeck);
 router.put('/decks/:deckId', authMiddleware, libraryController.updateUserDeck);
+router.patch('/decks/:deckId/card', authMiddleware, libraryController.updateCardProgress);
 router.delete('/decks/:deckId', authMiddleware, libraryController.deleteUserDeck);
 
 // User story archive endpoints (private, "Past stories")

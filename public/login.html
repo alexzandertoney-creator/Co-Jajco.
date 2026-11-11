@@ -7,11 +7,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
+  <script>/* Apply the saved appearance before first paint (no flash). */try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <main class="auth-page">
+    <div class="auth-hero" aria-hidden="true">
+      <p class="auth-brand">Co? Jajco.</p>
+      <svg class="forest-art" viewBox="0 0 400 120" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <path class="far" d="M0 120V78l46-34 38 26 52-46 58 44 34-22 60 40 44-30 68 44v40Z"/>
+      <path class="snow" d="M136 24l-14 13 9-2 5 6 6-6 9 2Z M46 44l-10 9 7-1 3 4 4-4 6 1Z"/>
+      <g class="near">
+        <path d="M18 120l14-40 14 40Z M30 120l12-30 12 30Z"/>
+        <path d="M70 120l18-52 18 52Z M92 120l12-34 12 34Z"/>
+        <path d="M262 120l16-46 16 46Z M286 120l12-32 12 32Z"/>
+        <path d="M330 120l18-56 18 56Z M356 120l13-36 13 36Z M378 120l11-28 11 28Z"/>
+      </g>
+    </svg>
+      <div class="auth-mascot" id="authMascot"></div>
+    </div>
     <form class="form-container" id="loginForm" novalidate>
       <img class="auth-logo" src="/images/logo.01.png" alt="Co? Jajco." width="96" height="96">
       <h1>Welcome back</h1>
@@ -35,5 +50,6 @@
 
   <script src="js/dialogs.js"></script>
   <script src="login.js"></script>
+  <script type="module">import { mascot } from "./js/art.js"; document.getElementById("authMascot").innerHTML = mascot("wave");</script>
 </body>
 </html>

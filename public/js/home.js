@@ -277,3 +277,37 @@ export function setupProfileForm(onSaved) {
     }
   });
 }
+
+/**
+ * A daily study reminder as a calendar file (.ics): works with Google, Apple and
+ * Outlook calendars without any email/push service.
+ */
+export function downloadReminder(time, user) {
+  const [h, m] = (time || '19:00').split(':').map(Number);
+  const start = new Date();
+  start.setHours(h, m, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  const local = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const goal = getProfile()?.dailyGoal || 20;
+  const lang = langName(user?.learningLang);
+  const url = `${location.origin}/index.html`;
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Co Jajco//Reminder//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:cojajco-daily-${Date.now()}@cojajco`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')}`,
+    `DTSTART:${local(start)}`,
+    'DURATION:PT15M',
+    'RRULE:FREQ=DAILY',
+    `SUMMARY:${lang} practice · Co? Jajco.`,
+    `DESCRIPTION:Your daily goal: ${goal} cards. Open ${url}`,
+    `URL:${url}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:Time for ${lang}!`, 'TRIGGER:PT0M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  a.download = 'co-jajco-daily-reminder.ics';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
