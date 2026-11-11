@@ -15,9 +15,11 @@ import learnMode from './modes/learn.js';
 import testMode from './modes/test.js';
 import matchMode from './modes/match.js';
 import deckEditor from './deckEditor.js';
+import { loadProfile, recordAnswer, onProfileChange } from './profile.js';
+import { renderHome, renderProfile, renderIdentity, setupProfileForm, rememberDeck } from './home.js';
 
 // Global state
-let currentMode = MODES.FLASHCARDS;
+let currentMode = MODES.HOME;
 let currentDeckIndex = 0;
 
 /**
@@ -25,8 +27,11 @@ let currentDeckIndex = 0;
  */
 async function initializeApp() {
   try {
-    // Load user first
+    // Load user first; profile extras (streak, goal, name) load alongside.
+    const profileReady = loadProfile();
     await DataManager.loadUser();
+    await profileReady;
+    renderIdentity(DataManager.currentUser);
     // Load top words for story analysis (used to mark common words)
     StoryAnalyzer.loadTopWords(DataManager.currentUser?.learningLang); // not awaited: don't block startup
     
@@ -83,9 +88,25 @@ async function initializeApp() {
       refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
     });
 
-    // Deep link from other pages, e.g. index.html#deckEditor
-    const hashMode = location.hash.slice(1);
-    if (Object.values(MODES).includes(hashMode)) switchMode(hashMode);
+    // Deep links (index.html#deckEditor, #profile …) on load and while on the page.
+    const openHash = () => {
+      const hashMode = location.hash.slice(1);
+      switchMode(Object.values(MODES).includes(hashMode) ? hashMode : MODES.HOME);
+    };
+    window.addEventListener('hashchange', openHash);
+    openHash();
+
+    // Every answered card counts toward today's goal and the streak.
+    window.addEventListener('reviewScheduleChanged', () => recordAnswer());
+    onProfileChange(() => {
+      renderIdentity(DataManager.currentUser);
+      if (currentMode === MODES.HOME) renderHome(homeContext());
+    });
+    setupProfileForm((changes) => {
+      // A different native language changes which decks apply, so reload cleanly.
+      if (changes.nativeLang && changes.nativeLang !== DataManager.currentUser?.nativeLang) location.reload();
+    });
+    document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => switchMode(b.dataset.go)));
 
     console.log('App initialized successfully');
   } catch (error) {
@@ -763,6 +784,7 @@ function refreshDecks(selectDeckId, { rerender = true } = {}) {
   if (DataManager.filteredDecks.length) UI.deckSelect.value = currentDeckIndex;
 
   const deck = DataManager.getDeck(currentDeckIndex);
+  if (deck && deck.id !== 'master-vocab') rememberDeck(deck.id);
   flashcardsMode.currentCardIndex = 0;
   flashcardsMode.activeFlashcards = [];
   if (deck?.cards?.length) {
@@ -788,6 +810,18 @@ function updateDueBadge() {
 }
 window.addEventListener('reviewScheduleChanged', updateDueBadge);
 
+function homeContext() {
+  return {
+    user: DataManager.currentUser,
+    decks: DataManager.filteredDecks,
+    onStudy: (deckId) => {
+      if (deckId != null) refreshDecks(deckId, { rerender: false });
+      switchMode(MODES.FLASHCARDS);
+    },
+    onNewDeck: () => UI.newDeckBtn?.click(),
+  };
+}
+
 async function copyToClipboard(text, successMessage) {
   try {
     await navigator.clipboard.writeText(text);
@@ -807,7 +841,20 @@ function switchMode(mode) {
 
   const deck = DataManager.getDeck(currentDeckIndex);
 
+  // Keep the URL in step so refresh and the back button land on the same screen.
+  if (location.hash.slice(1) !== mode) history.replaceState(null, '', mode === MODES.HOME ? location.pathname : `#${mode}`);
+
   switch (mode) {
+    case MODES.HOME:
+      setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
+      renderHome(homeContext());
+      break;
+
+    case MODES.PROFILE:
+      setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
+      renderProfile({ user: DataManager.currentUser, decks: DataManager.filteredDecks });
+      break;
+
     case MODES.FLASHCARDS:
       setKeyboardContext(KEYBOARD_CONTEXTS.FLASHCARDS);
       flashcardsMode.showCard(deck, DataManager.currentUser.learningLang);

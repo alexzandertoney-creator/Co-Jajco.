@@ -5,6 +5,9 @@
 
 import { scheduleCard, isDue, isNew, shuffleArray } from './js/utils.js';
 import { speakText } from './js/tts.js';
+import { loadProfile, recordAnswer } from './js/profile.js';
+import { renderIdentity } from './js/home.js';
+import { mascot } from './js/art.js';
 
 const NEW_PER_SESSION = 10;
 const ALL = 'all';
@@ -47,8 +50,11 @@ async function loadUser() {
 }
 
 async function init() {
+  const profileReady = loadProfile();
   user = await loadUser();
   if (!user) return;
+  await profileReady;
+  renderIdentity(user);
   try {
     const res = await fetch('/api/library/decks', { headers: authHeaders() });
     if (!res.ok) throw new Error(res.status);
@@ -111,6 +117,7 @@ function answer(correct) {
   card.stats[correct ? 'correct' : 'incorrect']++;
   scheduleCard(card, correct);
   saveDeck(deck);
+  recordAnswer();
   reviewedThisSession++;
 
   queue.splice(index, 1);
@@ -148,7 +155,9 @@ function renderDone() {
   home.className = 'button-link';
   home.textContent = 'Back to studying';
   actions.appendChild(home);
-  box.append(h, p, actions);
+  const art = document.createElement('div');
+  art.innerHTML = mascot(reviewedThisSession ? 'cheer' : 'rest');
+  box.append(art.firstElementChild, h, p, actions);
 }
 
 function whenText(ts) {

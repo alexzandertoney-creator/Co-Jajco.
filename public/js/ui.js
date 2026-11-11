@@ -1,3 +1,4 @@
+import { mascot } from './art.js';
 // ============ UI & DOM MANAGEMENT ============
 
 import { MODES } from './constants.js';
@@ -95,6 +96,8 @@ export function renderMode(mode) {
   document.querySelectorAll('.mode-container').forEach(c => c.style.display = 'none');
 
   const containerId =
+    mode === MODES.HOME ? 'homeContainer' :
+    mode === MODES.PROFILE ? 'profileContainer' :
     mode === MODES.FLASHCARDS ? 'flashcardContainer' :
     mode === MODES.LEARN ? 'learnContainer' :
     mode === MODES.TEST ? 'testContainer' :
@@ -199,7 +202,9 @@ export function renderResults(el, { correct, total, actions = [] }) {
     b.addEventListener('click', onClick);
     row.appendChild(b);
   });
-  el.append(title, score, note, row);
+  const art = document.createElement('div');
+  art.innerHTML = mascot(pct >= 50 ? 'cheer' : 'wave');
+  el.append(art.firstElementChild, title, score, note, row);
   el.hidden = false;
   row.querySelector('button')?.focus({ preventScroll: true });
 }
@@ -244,5 +249,7 @@ export function renderDeckState(deck, deckCount) {
     primary.addEventListener('click', () => document.querySelector('[data-mode="deckEditor"]')?.click());
     row.append(primary);
   }
-  box.append(h, p, row);
+  const art = document.createElement('div');
+  art.innerHTML = mascot('wave');
+  box.append(art.firstElementChild, h, p, row);
 }

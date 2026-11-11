@@ -1,4 +1,6 @@
 import { recommendedVocabSets } from "./recommendedSets.js";
+import { loadProfile } from "./js/profile.js";
+import { renderIdentity } from "./js/home.js";
 
 let selectedDecks = [];
 
@@ -55,7 +57,10 @@ async function loadUser() {
 }
 
 async function init() {
+  const profileReady = loadProfile();
   await loadUser();
+  await profileReady;
+  renderIdentity(window.currentUser);
   await loadExistingDecks();
   await renderRecommendedDecks();
   updateAddButton();

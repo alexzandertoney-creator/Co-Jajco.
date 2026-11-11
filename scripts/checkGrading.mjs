@@ -29,3 +29,13 @@ scheduleCard(c, false, t0);  assert.equal(c.srs.interval, 0);
 assert.ok(isDue(c, t0));                                          // a miss comes back today
 assert.ok(c.srs.ease >= 1.3);
 console.log('srs ok');
+
+// Streak math
+import { streak, bestStreak } from '../public/js/profile.js';
+const key = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('en-CA'); };
+const act = { [key(0)]: 3, [key(1)]: 5, [key(2)]: 1, [key(5)]: 2, [key(6)]: 2, [key(7)]: 2, [key(8)]: 2 };
+assert.equal(streak(act), 3);                       // today, yesterday, day before
+assert.equal(streak({ [key(1)]: 2, [key(2)]: 2 }), 2); // not studied yet today: streak still counts
+assert.equal(streak({ [key(2)]: 2 }), 0);            // missed yesterday: broken
+assert.equal(bestStreak(act), 4);                    // days 5–8
+console.log('streak ok');

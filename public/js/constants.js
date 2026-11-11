@@ -29,6 +29,8 @@ export const LANGUAGE_LEVELS = ['PreA1', 'A1', 'A2', 'B1', 'B2'];
 
 // Study modes
 export const MODES = {
+  HOME: 'home',
+  PROFILE: 'profile',
   FLASHCARDS: 'flashcards',
   LEARN: 'learn',
   TEST: 'test',

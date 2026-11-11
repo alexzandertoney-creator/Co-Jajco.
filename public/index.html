@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body data-group="study">
+<body data-group="home">
 
   <aside class="sidebar">
     <a class="brand" href="index.html">
@@ -19,6 +19,7 @@
     </a>
 
     <nav class="primary-nav mode-selector" aria-label="Main">
+      <button data-mode="home" data-group="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/></svg><span>Home</span></button>
       <button data-mode="flashcards" data-group="study"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></svg><span>Study</span></button>
       <a href="smartReview.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg><span>Review</span><span id="dueBadge" class="nav-badge" hidden></span></a>
       <button data-mode="deckEditor" data-group="deckEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Decks</span></button>
@@ -26,21 +27,21 @@
       <button data-mode="publicLibrary" data-group="publicLibrary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>Library</span></button>
     </nav>
 
-    <div class="account">
-      <label class="lang-picker">
-        <span>Learning</span>
-        <select id="languageSelect">
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="pl">Polish</option>
-          <option value="jp">Japanese</option>
-          <option value="it">Italian</option>
-          <option value="en">English</option>
-        </select>
-      </label>
-      <button id="logoutBtn" class="ghost">Log out</button>
-    </div>
+    <svg class="forest-art" viewBox="0 0 400 120" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <path class="far" d="M0 120V78l46-34 38 26 52-46 58 44 34-22 60 40 44-30 68 44v40Z"/>
+      <path class="snow" d="M136 24l-14 13 9-2 5 6 6-6 9 2Z M46 44l-10 9 7-1 3 4 4-4 6 1Z"/>
+      <g class="near">
+        <path d="M18 120l14-40 14 40Z M30 120l12-30 12 30Z"/>
+        <path d="M70 120l18-52 18 52Z M92 120l12-34 12 34Z"/>
+        <path d="M262 120l16-46 16 46Z M286 120l12-32 12 32Z"/>
+        <path d="M330 120l18-56 18 56Z M356 120l13-36 13 36Z M378 120l11-28 11 28Z"/>
+      </g>
+    </svg>
+
+    <a class="profile-chip" href="#profile" aria-label="Your profile">
+      <span class="avatar" data-avatar>·</span>
+      <span class="chip-text"><strong data-display-name>Profile</strong><span>View profile</span></span>
+    </a>
   </aside>
 
   <main class="main">
@@ -56,6 +57,166 @@
     <button data-mode="test">Test</button>
     <button data-mode="match">Match</button>
   </nav>
+
+  <!-- HOME -->
+  <section id="homeContainer" class="mode-container wide home">
+    <div class="hero">
+      <svg class="forest-art hero-art" viewBox="0 0 400 120" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <path class="far" d="M0 120V78l46-34 38 26 52-46 58 44 34-22 60 40 44-30 68 44v40Z"/>
+      <path class="snow" d="M136 24l-14 13 9-2 5 6 6-6 9 2Z M46 44l-10 9 7-1 3 4 4-4 6 1Z"/>
+      <g class="near">
+        <path d="M18 120l14-40 14 40Z M30 120l12-30 12 30Z"/>
+        <path d="M70 120l18-52 18 52Z M92 120l12-34 12 34Z"/>
+        <path d="M262 120l16-46 16 46Z M286 120l12-32 12 32Z"/>
+        <path d="M330 120l18-56 18 56Z M356 120l13-36 13 36Z M378 120l11-28 11 28Z"/>
+      </g>
+    </svg>
+      <div class="hero-mascot" id="heroMascot"></div>
+      <div class="hero-text">
+        <h1 id="heroGreeting">Dzień dobry!</h1>
+        <p id="heroSub" class="hero-sub">Let’s learn some words today.</p>
+        <div class="actions">
+          <a id="heroReview" class="button-link on-dark" href="smartReview.html">Start review</a>
+          <button id="heroContinue" class="ghost on-dark" type="button">Continue studying</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-row">
+      <section class="trail-card" aria-labelledby="trailTitle">
+        <div class="trail-head">
+          <div>
+            <h2 id="trailTitle"><span id="statStreak">0</span>-day streak</h2>
+            <p class="meta" id="trailNote"></p>
+          </div>
+          <div class="goal" aria-live="polite">
+            <svg class="goal-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="goal-track" cx="60" cy="60" r="50"/>
+              <circle id="goalArc" class="goal-arc" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="0 100"/>
+            </svg>
+            <div class="goal-text"><strong id="goalCount">0</strong><span id="goalOf">of 20 today</span></div>
+          </div>
+        </div>
+        <ol class="trail" id="trail" aria-label="The last 7 days"></ol>
+        <dl class="mini-stats">
+          <div><dt>Words learned</dt><dd id="statLearned">0</dd></div>
+          <div><dt>Mastered</dt><dd id="statMastered">0</dd></div>
+          <div><dt>Accuracy</dt><dd id="statAccuracy">–</dd></div>
+        </dl>
+      </section>
+
+      <aside class="field-note" id="wordOfDay" hidden>
+        <p class="field-note-label">Word of the day</p>
+        <p class="wotd-word" id="wotdWord"></p>
+        <p class="wotd-meaning" id="wotdMeaning"></p>
+        <p class="card-note" id="wotdNote" hidden></p>
+        <button id="wotdSpeak" class="speak" type="button" aria-label="Listen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </aside>
+    </div>
+
+    <div class="section-head">
+      <h2>Your field notebooks</h2>
+      <div class="actions">
+        <a class="text-link" href="recommended.html">Starter decks</a>
+        <button class="ghost small" type="button" data-go="publicLibrary">Library</button>
+      </div>
+    </div>
+    <div id="deckTiles" class="deck-tiles"></div>
+  </section>
+
+  <!-- PROFILE -->
+  <section id="profileContainer" class="mode-container wide profile">
+    <div class="profile-layout">
+      <aside class="ranger-card">
+        <div class="ranger-top">
+          <svg class="forest-art ranger-art" viewBox="0 0 400 120" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <path class="far" d="M0 120V78l46-34 38 26 52-46 58 44 34-22 60 40 44-30 68 44v40Z"/>
+      <path class="snow" d="M136 24l-14 13 9-2 5 6 6-6 9 2Z M46 44l-10 9 7-1 3 4 4-4 6 1Z"/>
+      <g class="near">
+        <path d="M18 120l14-40 14 40Z M30 120l12-30 12 30Z"/>
+        <path d="M70 120l18-52 18 52Z M92 120l12-34 12 34Z"/>
+        <path d="M262 120l16-46 16 46Z M286 120l12-32 12 32Z"/>
+        <path d="M330 120l18-56 18 56Z M356 120l13-36 13 36Z M378 120l11-28 11 28Z"/>
+      </g>
+    </svg>
+          <span class="avatar avatar-xl" data-avatar>·</span>
+        </div>
+        <div class="ranger-body">
+          <p class="ranger-label">Field ranger</p>
+          <h2 data-display-name>Profile</h2>
+          <p class="meta" id="profileEmail"></p>
+          <p class="ranger-langs" id="profileLangs"></p>
+          <dl class="ranger-stats">
+            <div><dt>Day streak</dt><dd id="pStreak">0</dd></div>
+            <div><dt>Best streak</dt><dd id="pBest">0</dd></div>
+            <div><dt>Words learned</dt><dd id="pLearned">0</dd></div>
+            <div><dt>Mastered</dt><dd id="pMastered">0</dd></div>
+            <div><dt>Accuracy</dt><dd id="pAccuracy">–</dd></div>
+          </dl>
+          <button id="logoutBtn" class="ghost logout" type="button">Log out</button>
+        </div>
+      </aside>
+
+      <div class="profile-main">
+        <section class="panel">
+          <div class="section-head"><h3>Merit patches</h3><span class="meta" id="patchCount"></span></div>
+          <ul class="patches" id="patches"></ul>
+        </section>
+
+        <section class="panel">
+          <div class="section-head"><h3>Activity</h3><span class="meta" id="heatmapCaption"></span></div>
+          <div id="heatmap" class="heatmap" role="img"></div>
+          <div class="heatmap-legend meta"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div>
+        </section>
+
+        <details class="panel settings-panel">
+          <summary>Settings</summary>
+          <p class="meta">Your name, daily goal and languages.</p>
+          <form id="profileForm" novalidate>
+            <div class="field-grid">
+              <label>Display name
+                <input id="profileDisplayName" maxlength="40" placeholder="What should we call you?" autocomplete="nickname" />
+              </label>
+              <label>Daily goal
+                <select id="profileGoal">
+                  <option value="10">10 cards a day · relaxed</option>
+                  <option value="20">20 cards a day · steady</option>
+                  <option value="30">30 cards a day · serious</option>
+                  <option value="50">50 cards a day · intense</option>
+                </select>
+              </label>
+              <label>I speak
+                <select id="profileNative">
+                  <option value="en">English</option>
+                  <option value="pl">Polish</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="it">Italian</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions"><button type="submit" id="profileSave">Save changes</button></div>
+          </form>
+          <div class="settings-lang">
+            <label class="lang-picker">
+              <span>Learning</span>
+              <select id="languageSelect">
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="pl">Polish</option>
+            <option value="jp">Japanese</option>
+            <option value="it">Italian</option>
+            <option value="en">English</option>
+              </select>
+            </label>
+            <p class="meta">Switching language shows that language’s decks.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
 
   <!-- FLASHCARDS -->
   <section id="flashcardContainer" class="mode-container">
