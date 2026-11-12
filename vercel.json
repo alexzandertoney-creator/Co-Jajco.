@@ -20,7 +20,7 @@
       "dest": "public/recommended.html"
     },
     {
-      "src": "/(study|study/learn|study/test|study/match|decks|stories|grammar|library|profile)/?",
+      "src": "/(study|study/learn|study/test|study/match|decks|stories|grammar|notes|library|profile)/?",
       "dest": "public/index.html"
     },
     {

@@ -5,6 +5,7 @@
 import { CASES, GENDERS, grammarFor, openGrammarSheet, shardOf } from './grammar.js';
 import { shuffleArray } from './utils.js';
 import { mascot, loader } from './art.js';
+import { CASE_CHART, chartCell } from './caseChart.js';
 
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const first = (cell) => String(cell || '').split('/')[0];
@@ -78,6 +79,10 @@ async function casesTopic() {
   box.appendChild(s1);
 
   const s2 = section('The cases one by one');
+  const toChart = el('button', 'link-btn gg-to-chart', 'Every adjective and noun ending, case by case: open the endings chart →');
+  toChart.type = 'button';
+  toChart.addEventListener('click', () => openTopic?.('chart'));
+  s2.appendChild(toChart);
   const grid = el('div', 'gg-cards');
   CASES.forEach((c, i) => {
     const card = el('article', `gg-card ${CASE_TONES[i]}`);
@@ -199,6 +204,33 @@ async function verbsTopic() {
     s2.appendChild(simpleTable(['', ...verbs.map(([w, l]) => `${w} (${l})`)], persons.map((p, i) => [p, ...verbs.map(([w, , f]) => ending(w.slice(0, -2), first(f[i])))])));
   }
   box.appendChild(s2);
+
+  // Verbs ending in -wać: the classic trap, the -wa- usually vanishes in the present.
+  const sw = section('Verbs ending in -wać', 'In the present tense most of them lose part of the ending: gotować → gotuję, dawać → daję. The past tense keeps it: gotowałem, dawałem.');
+  const wac = [['gotować', '-ować → -uję'], ['dawać', '-awać → -aję'], ['pokazywać', '-ywać → -uję'], ['używać', '-ywać → -am']];
+  const wacFound = await Promise.all(wac.map(([w]) => grammarFor(w).catch(() => null)));
+  const wacRows = wac.map(([w, l], k) => [w, l, wacFound[k]?.entry]).filter(([, , e]) => e?.pres);
+  if (wacRows.length) {
+    const persons = ['ja', 'ty', 'on / ona', 'my', 'wy', 'oni / one'];
+    sw.appendChild(simpleTable(['', ...wacRows.map(([w, l]) => `${w} (${l})`)], [
+      ...persons.map((p, i) => [p, ...wacRows.map(([w, , e]) => ending(w.slice(0, -2), first(e.pres[i])))]),
+      ['past (on)', ...wacRows.map(([, , e]) => first(e.past?.m?.[2]))],
+      ['command', ...wacRows.map(([, , e]) => first(e.imp?.[0]) ? `${first(e.imp[0])}!` : '—')],
+    ]));
+  }
+  const groups = el('div', 'gg-cards gg-three');
+  [
+    ['-ować → -uję', 'Almost always. Only chować (chowam) breaks it.', 'gotować, kupować, pracować, studiować, budować, malować, rysować, podróżować, dziękować, potrzebować, żałować'],
+    ['-awać → -aję', 'Always: the -wa- just disappears.', 'dawać, wstawać, dostawać, sprzedawać, poznawać, zostawać, oddawać'],
+    ['-ywać / -iwać', 'Two groups, no safe rule — tap the verb to see which. Most made from a shorter verb (pokazać → pokazywać) go -uję.', '-uję: pokazywać, zapisywać, obiecywać, oczekiwać · -am: używać, nazywać, pływać, odpoczywać, odkrywać, śpiewać'],
+  ].forEach(([title, rule, list]) => {
+    const c = el('article', 'gg-card');
+    c.append(el('header', null, ''), el('p', null, rule), el('p', 'gg-ex', list));
+    c.querySelector('header').appendChild(el('strong', null, title));
+    groups.appendChild(c);
+  });
+  sw.appendChild(groups);
+  box.appendChild(sw);
 
   const s3 = section('Past tense: it shows who did it', 'Take the infinitive, drop -ć, add -ł- plus an ending for the person and gender.');
   s3.appendChild(simpleTable(['', 'man', 'woman', ''], [
@@ -453,14 +485,82 @@ async function practiceTopic(getDeckWords) {
   return box;
 }
 
+// ---------- Endings chart ----------
+function chartTable(label, part) {
+  const wrap = el('div', 'cc-table-wrap');
+  wrap.appendChild(el('h4', 'cc-sub', label));
+  const t = el('table', 'cc-table');
+  const hr = el('tr');
+  hr.appendChild(el('th', 'cc-corner', ''));
+  part.cols.forEach((c) => hr.appendChild(el('th', null, c)));
+  const thead = el('thead'); thead.appendChild(hr); t.appendChild(thead);
+  const tb = el('tbody');
+  [['Przymiotnik', part.adj], ['Rzeczownik', part.noun]].forEach(([name, cells]) => {
+    const tr = el('tr');
+    const th = el('th', null, name); th.scope = 'row'; tr.appendChild(th);
+    cells.forEach((c, i) => {
+      const td = el('td');
+      // A single cell under several columns spans them all ("all genders").
+      if (i === cells.length - 1 && cells.length < part.cols.length) td.colSpan = part.cols.length - i;
+      td.dataset.label = td.colSpan > 1 ? 'Wszystkie rodzaje' : part.cols[i];
+      td.innerHTML = chartCell(c);
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); wrap.appendChild(t);
+  return wrap;
+}
+
+function chartTopic(_, jump) {
+  const box = el('div');
+  const head = section('Case endings chart', 'Adjective and noun endings for all seven cases, singular and plural. Endings in red; examples in italics.');
+  const dl = el('a', 'gg-download', 'Download as PDF');
+  dl.href = '/files/7-przypadkow.pdf';
+  dl.setAttribute('download', 'Polska gramatyka - 7 przypadkow.pdf');
+  head.appendChild(dl);
+  box.appendChild(head);
+  CASE_CHART.forEach((c, i) => {
+    const d = el('details', `cc-case ${CASE_TONES[i]}`);
+    d.id = `chart-${i}`;
+    d.open = jump?.case != null ? jump.case === i : i === 0;
+    const s = el('summary');
+    s.append(el('span', 'cc-num', String(i + 1)), el('strong', null, c.pl), el('span', 'cc-en', c.en), el('span', 'cc-q', c.q));
+    d.appendChild(s);
+    const body = el('div', 'cc-body');
+    if (c.preps) {
+      const chips = el('div', 'gg-chips');
+      c.preps.split(', ').forEach((p) => chips.appendChild(el('span', null, p)));
+      body.appendChild(chips);
+    }
+    body.appendChild(chartTable('Liczba pojedyncza', c.sg));
+    if (c.plural) body.appendChild(chartTable('Liczba mnoga', c.plural));
+    if (c.note) { const n = el('p', 'cc-note'); n.innerHTML = `<strong>Uwaga:</strong> ${chartCell(c.note)}`; body.appendChild(n); }
+    const ex = el('p', 'cc-ex'); ex.innerHTML = `<strong>Przykłady:</strong> ${chartCell(c.examples)}`; body.appendChild(ex);
+    d.appendChild(body);
+    box.appendChild(d);
+  });
+  if (jump?.case != null) requestAnimationFrame(() => box.querySelector(`#chart-${jump.case}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  return box;
+}
+
+/** Ask the Grammar section to open a topic (and case) next time it's shown — used by links elsewhere. */
+export function jumpTo(topic, caseIndex) {
+  try { sessionStorage.setItem('grammarJump', JSON.stringify({ topic, case: caseIndex ?? null })); } catch { /* storage blocked */ }
+}
+function takeJump() {
+  try { const j = JSON.parse(sessionStorage.getItem('grammarJump') || 'null'); sessionStorage.removeItem('grammarJump'); return j; } catch { return null; }
+}
+
 // ---------- Section ----------
 const TOPICS = [
-  ['cases', 'Cases', casesTopic], ['gender', 'Gender', genderTopic], ['verbs', 'Verbs', verbsTopic],
+  ['cases', 'Cases', casesTopic], ['chart', 'Endings chart', chartTopic], ['gender', 'Gender', genderTopic], ['verbs', 'Verbs', verbsTopic],
   ['adjectives', 'Adjectives', adjectivesTopic], ['numbers', 'Numbers', numbersTopic],
   ['prepositions', 'Prepositions', prepositionsTopic], ['pronouns', 'Pronouns', pronounsTopic], ['practice', 'Practice', practiceTopic],
 ];
 
 let built = false;
+let openTopic = null;
 /** Renders the Grammar section once. `getDeckWords()` returns the learner's Polish words. */
 export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
   const root = document.getElementById('grammarContainer');
@@ -470,7 +570,7 @@ export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
     root.replaceChildren(el('h2', null, 'Grammar'), el('p', 'meta', 'The grammar guide is for Polish for now. Switch your learning language to Polish in Profile → Settings to use it.'));
     return;
   }
-  if (built) return;
+  if (built) { const j = takeJump(); if (j) openTopic?.(j.topic, j); return; }
   built = true;
   root.replaceChildren();
 
@@ -503,13 +603,13 @@ export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
   tabs.setAttribute('role', 'tablist');
   const body = el('div', 'gg-body');
   let token = 0;
-  const open = async (key) => {
+  const open = async (key, jump) => {
     const t = ++token;
     for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.topic === key));
     try { localStorage.setItem('grammarTopic', key); } catch { /* storage blocked */ }
     const topic = TOPICS.find(([k]) => k === key) || TOPICS[0];
     body.innerHTML = loader('Loading…');
-    const content = await topic[2](getDeckWords);
+    const content = await topic[2](getDeckWords, jump);
     if (t === token) body.replaceChildren(content);
   };
   TOPICS.forEach(([key, label]) => {
@@ -519,7 +619,10 @@ export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
     tabs.appendChild(b);
   });
   root.append(tabs, body);
+  openTopic = open;
+  const jump = takeJump();
   let saved = null;
   try { saved = localStorage.getItem('grammarTopic'); } catch { /* storage blocked */ }
-  open(TOPICS.some(([k]) => k === saved) ? saved : 'cases');
+  if (jump && TOPICS.some(([k]) => k === jump.topic)) open(jump.topic, jump);
+  else open(TOPICS.some(([k]) => k === saved) ? saved : 'cases');
 }

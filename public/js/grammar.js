@@ -293,6 +293,14 @@ function tipsView(entry, lemma) {
       const a = first(t[0]); const b = first(t[1]);
       const group = /m$/.test(a) && /sz$/.test(b) ? (/asz$/.test(b) ? '-am, -asz' : '-em, -esz') : /ę$/.test(a) ? (/[iy]sz$/.test(b) ? '-ę, -isz / -ysz' : '-ę, -esz') : null;
       if (group) tip('Conjugation pattern', `This verb goes ${group}. Learn ja + ty and the rest follows: on drops -sz, my adds -my, wy adds -cie, oni ends in -ą / -ją / -dzą.`, `${a}, ${b}, ${first(t[2])}, ${first(t[3])}, ${first(t[4])}, ${first(t[5])}`);
+      // -wać verbs: does the -wa- disappear in the present? Told from the real forms.
+      const inf = entry.inf || lemma;
+      const past = first(entry.past?.m?.[0]);
+      if (/wać$/.test(inf)) {
+        if (/uję$/.test(a)) tip('A -wać verb that drops -owa- / -ywa-', `In the present, the -${(inf.match(/[oyi]wać$/) || ['ować'])[0]} ending becomes -uję, -ujesz… The past keeps the full stem.`, `${inf} → ${a}, ${b}${past ? ` · past: ${past}` : ''}`);
+        else if (/aję$/.test(a)) tip('A -wać verb that drops -wa-', 'All -awać verbs (dawać, wstawać, poznawać…) go -aję, -ajesz… in the present. The past keeps -wa-.', `${inf} → ${a}, ${b}${past ? ` · past: ${past}` : ''}`);
+        else if (/am$/.test(a)) tip('A -wać verb that keeps -wa-', 'Not every -ywać / -iwać verb shrinks: this one stays regular (-am, -asz), like używać → używam. Compare pokazywać → pokazuję.', `${inf} → ${a}, ${b}`);
+      }
     }
     if (entry.past?.m && entry.past?.f) tip('Past tense shows gender', 'The speaker’s gender changes the ending: men say -łem, women -łam. Groups with a man use -li, others -ły.', `${first(entry.past.m[0])} / ${first(entry.past.f[0])} · ${first(entry.past.m[2])} / ${first(entry.past.f[2])} · ${first(entry.past.v?.[2])} / ${first(entry.past.nv?.[2])}`);
     if (t && t[2]) tip('Polite “you”', 'Speaking formally, use Pan (to a man) / Pani (to a woman) with the 3rd person form.', `Czy Pan ${first(t[2])}? · Czy Pani ${first(t[2])}?`);
@@ -314,10 +322,19 @@ function casesView(highlight) {
     d.appendChild(el('p', 'gram-ex', c.ex));
     box.appendChild(d);
   });
-  const more = el('a', 'gram-guide-link', 'Open the full grammar guide →');
+  // Links into the Grammar section: the endings chart (at the highlighted case) and the guide.
+  const links = el('div', 'gram-guide-links');
+  const chart = el('a', 'gram-guide-link', 'Full endings chart →');
+  chart.href = '/grammar';
+  chart.addEventListener('click', () => {
+    try { sessionStorage.setItem('grammarJump', JSON.stringify({ topic: 'chart', case: highlight ?? null })); } catch { /* storage blocked */ }
+    sheet?.close();
+  });
+  const more = el('a', 'gram-guide-link', 'Grammar guide →');
   more.href = '/grammar';
   more.addEventListener('click', () => sheet?.close());
-  box.appendChild(more);
+  links.append(chart, more);
+  box.appendChild(links);
   return box;
 }
 

@@ -1,6 +1,7 @@
 // ============ MAIN APPLICATION INITIALIZATION ============
 
 import { renderGrammarGuide } from './grammarGuide.js';
+import { renderNotes } from './notes.js';
 import * as DataManager from './data.js';
 import { isDue, shuffleArray } from './utils.js';
 import { STARTER_STORIES, wordsIn } from './starterStories.js';
@@ -23,7 +24,7 @@ import deckEditor, { filterCards } from './deckEditor.js';
 // Screen <-> URL. Keep in step with PAGES in Server/server.js and "routes" in vercel.json.
 const MODE_PATHS = {
   home: '/', profile: '/profile', flashcards: '/study', learn: '/study/learn', test: '/study/test', match: '/study/match',
-  deckEditor: '/decks', storyAnalyzer: '/stories', grammar: '/grammar', publicLibrary: '/library',
+  deckEditor: '/decks', storyAnalyzer: '/stories', grammar: '/grammar', notes: '/notes', publicLibrary: '/library',
 };
 const modeFromPath = (p) => {
   const clean = String(p).replace(/\/+$/, '') || '/';
@@ -910,7 +911,9 @@ function setupStoryAnalyzerListeners() {
 
   // The window is opened first (inside the click) so pop-up blockers allow it.
   const copyAndOpen = async (prompt, url) => {
-    const win = window.open(url, '_blank', 'noopener');
+    // No 'noopener' feature: with it, window.open always returns null and we'd wrongly report a block.
+    const win = window.open(url, '_blank');
+    if (win) win.opener = null;
     promptOutput.value = prompt;
     await copyToClipboard(prompt, 'Prompt copied. Paste it into the chat, then paste the reply back here.');
     if (!win) toast('Your browser blocked the new tab. The prompt is copied; open the chat yourself.', 'info');
@@ -1085,6 +1088,14 @@ function switchMode(mode, { history = 'push' } = {}) {
     case MODES.STORY_ANALYZER:
       setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
       // Story analyzer initialized separately
+      break;
+
+    case MODES.NOTES:
+      setKeyboardContext(KEYBOARD_CONTEXTS.DISABLED);
+      renderNotes({
+        user: DataManager.currentUser,
+        getDeckWords: () => DataManager.filteredDecks.flatMap((d) => d.cards.map((c) => String(c.answer || '').split(/[\s/,;]+/)[0])).filter(Boolean),
+      });
       break;
 
     case MODES.GRAMMAR:

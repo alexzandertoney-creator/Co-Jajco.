@@ -105,6 +105,7 @@ export function renderMode(mode) {
     mode === MODES.STORY_ANALYZER ? 'storyAnalyzerContainer' :
     mode === MODES.PUBLIC_LIBRARY ? 'publicLibraryContainer' :
     mode === MODES.GRAMMAR ? 'grammarContainer' :
+    mode === MODES.NOTES ? 'notesContainer' :
     null;
 
   if (containerId) {
