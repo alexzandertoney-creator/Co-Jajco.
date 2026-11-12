@@ -1,5 +1,5 @@
 // Already logged in? Skip the form.
-if (localStorage.getItem("token")) window.location.replace("index.html");
+if (localStorage.getItem("token")) window.location.replace("/");
 
 const form = document.getElementById("loginForm");
 const btn = document.getElementById("loginBtn");
@@ -25,7 +25,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
     localStorage.setItem("token", data.token);
-    window.location.replace("index.html");
+    window.location.replace("/");
   } catch {
     toast("Can't reach the server. Check your connection and try again.", "error");
   } finally {

@@ -38,9 +38,9 @@ form.addEventListener("submit", async (e) => {
     if (data.token) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("learningLang", learningLang);
-      window.location.replace("index.html");
+      window.location.replace("/");
     } else {
-      window.location.replace("login.html");
+      window.location.replace("/login");
     }
   } catch {
     toast("Can't reach the server. Check your connection and try again.", "error");

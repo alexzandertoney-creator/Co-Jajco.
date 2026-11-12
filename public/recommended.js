@@ -33,7 +33,7 @@ async function loadUser() {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return null;
   }
 
@@ -44,7 +44,7 @@ async function loadUser() {
 
     if (res.status === 401) {
       localStorage.removeItem("token");
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return null;
     }
 
@@ -143,7 +143,7 @@ async function addSelectedDecks() {
   }
   if (added === sets.length) {
     flash(`Added ${added} deck${added === 1 ? "" : "s"}. Happy studying!`, "success");
-    window.location.href = "index.html";
+    window.location.href = "/";
   } else {
     toast(`Added ${added} of ${sets.length} decks. Try the rest again.`, "error");
     await loadExistingDecks();
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lb = document.getElementById('logoutBtn');
   if (lb) lb.addEventListener('click', () => {
     localStorage.removeItem('token');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
   });
 });
 // Render recommended decks

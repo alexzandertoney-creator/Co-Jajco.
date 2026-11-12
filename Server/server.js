@@ -20,8 +20,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/library', libraryRoutes);
 app.use('/api/dictionary', dictionaryRoutes);
 
+// Clean page URLs (/stories, /review…) -> the page that renders them. Keep in step with
+// vercel.json "routes" and MODE_PATHS in public/js/main.js.
+const PUBLIC = path.join(__dirname, '../public');
+const PAGES = {
+  '/study': 'index.html', '/study/learn': 'index.html', '/study/test': 'index.html', '/study/match': 'index.html',
+  '/decks': 'index.html', '/stories': 'index.html', '/grammar': 'index.html', '/library': 'index.html', '/profile': 'index.html',
+  '/review': 'smartReview.html', '/library/starter': 'recommended.html', '/login': 'login.html', '/register': 'register.html',
+};
+for (const [route, file] of Object.entries(PAGES)) app.get([route, `${route}/`], (req, res) => res.sendFile(path.join(PUBLIC, file)));
+
 // Serve static files
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(PUBLIC));
 
 // Health check endpoint for Vercel
 app.get('/api/health', (req, res) => {

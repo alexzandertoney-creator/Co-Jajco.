@@ -16,6 +16,26 @@
       "dest": "Server/server.js"
     },
     {
+      "src": "/library/starter/?",
+      "dest": "public/recommended.html"
+    },
+    {
+      "src": "/(study|study/learn|study/test|study/match|decks|stories|grammar|library|profile)/?",
+      "dest": "public/index.html"
+    },
+    {
+      "src": "/review/?",
+      "dest": "public/smartReview.html"
+    },
+    {
+      "src": "/login/?",
+      "dest": "public/login.html"
+    },
+    {
+      "src": "/register/?",
+      "dest": "public/register.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "public/$1"
     }

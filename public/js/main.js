@@ -19,6 +19,16 @@ import learnMode from './modes/learn.js';
 import testMode from './modes/test.js';
 import matchMode from './modes/match.js';
 import deckEditor, { filterCards } from './deckEditor.js';
+
+// Screen <-> URL. Keep in step with PAGES in Server/server.js and "routes" in vercel.json.
+const MODE_PATHS = {
+  home: '/', profile: '/profile', flashcards: '/study', learn: '/study/learn', test: '/study/test', match: '/study/match',
+  deckEditor: '/decks', storyAnalyzer: '/stories', grammar: '/grammar', publicLibrary: '/library',
+};
+const modeFromPath = (p) => {
+  const clean = String(p).replace(/\/+$/, '') || '/';
+  return Object.keys(MODE_PATHS).find((m) => MODE_PATHS[m] === clean) || null;
+};
 import { loadProfile, recordAnswer, onProfileChange } from './profile.js';
 import { renderHome, renderProfile, renderIdentity, setupProfileForm, rememberDeck, downloadReminder } from './home.js';
 
@@ -90,13 +100,26 @@ async function initializeApp() {
       refreshDecks(DataManager.getDeck(currentDeckIndex)?.id ?? null, { rerender: false });
     });
 
-    // Deep links (index.html#deckEditor, #profile …) on load and while on the page.
-    const openHash = () => {
-      const hashMode = location.hash.slice(1);
-      switchMode(Object.values(MODES).includes(hashMode) ? hashMode : MODES.HOME);
+    // Clean URLs: /stories, /decks… open their screen; Back / Forward move between screens.
+    // Old links (index.html#storyAnalyzer) still work and are rewritten to the new path.
+    const openRoute = () => {
+      const legacy = location.hash.slice(1);
+      const mode = Object.values(MODES).includes(legacy) ? legacy : modeFromPath(location.pathname);
+      switchMode(mode || MODES.HOME, { history: 'replace' });
     };
-    window.addEventListener('hashchange', openHash);
-    openHash();
+    window.addEventListener('popstate', openRoute);
+    window.addEventListener('hashchange', openRoute);
+    // Links to another screen of this page switch in place instead of reloading.
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest?.('a[href]');
+      if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target) return;
+      const url = new URL(a.href, location.href);
+      const mode = url.origin === location.origin && !url.search && modeFromPath(url.pathname);
+      if (!mode) return;
+      e.preventDefault();
+      switchMode(mode);
+    });
+    openRoute();
     document.body.classList.remove('app-loading');
 
     // Every answered card counts toward today's goal and the streak.
@@ -135,7 +158,7 @@ function setupEventListeners() {
   // Logout
   UI.logoutBtn?.addEventListener('click', () => {
     localStorage.removeItem('token');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
   });
 
   // Appearance: system / light / dark (stored per device).
@@ -186,7 +209,7 @@ function setupEventListeners() {
     if (!r?.ok) return toast(data?.error || 'Couldn’t delete the account. Try again.', 'error');
     localStorage.clear();
     flash('Your account has been deleted. Sorry to see you go!', 'info');
-    window.location.replace('login.html');
+    window.location.replace('/login');
   });
 
   // Language switching lives in languageSync.js (shared by every page).
@@ -249,7 +272,7 @@ function setupEventListeners() {
 
   // Recommended decks
   document.getElementById('recommendedDecksBtn')?.addEventListener('click', () => {
-    window.location.href = 'recommended.html';
+    window.location.href = '/library/starter';
   });
 }
 
@@ -969,7 +992,7 @@ function refreshDecks(selectDeckId, { rerender = true } = {}) {
   if (deck?.cards?.length && UI.flashShuffleToggle?.checked) flashcardsMode.setShuffleMode(deck, true);
   // "Review this deck" opens the graded review for just this deck.
   const reviewLink = document.getElementById('reviewThisDeck');
-  if (reviewLink) reviewLink.href = deck && deck.id !== 'master-vocab' ? `smartReview.html?deck=${encodeURIComponent(deck.id)}` : 'smartReview.html';
+  if (reviewLink) reviewLink.href = deck && deck.id !== 'master-vocab' ? `/review?deck=${encodeURIComponent(deck.id)}` : '/review';
   UI.renderDeckState(deck, DataManager.filteredDecks.length);
   updateDueBadge();
   if (rerender) switchMode(currentMode);
@@ -1008,7 +1031,7 @@ async function copyToClipboard(text, successMessage) {
   }
 }
 
-function switchMode(mode) {
+function switchMode(mode, { history = 'push' } = {}) {
   // Stop timers (and story audio) from the mode we're leaving so they can't fire into the new one.
   if (mode !== MODES.STORY_ANALYZER) closeReader();
   matchMode.reset();
@@ -1019,8 +1042,9 @@ function switchMode(mode) {
 
   const deck = DataManager.getDeck(currentDeckIndex);
 
-  // Keep the URL in step so refresh and the back button land on the same screen.
-  if (location.hash.slice(1) !== mode) history.replaceState(null, '', mode === MODES.HOME ? location.pathname : `#${mode}`);
+  // Keep the URL in step (a new history entry, so Back works), unless told otherwise.
+  const path = MODE_PATHS[mode] || '/';
+  if (history && (location.pathname !== path || location.hash)) window.history[history === 'replace' ? 'replaceState' : 'pushState'](null, '', path);
 
   switch (mode) {
     case MODES.HOME:

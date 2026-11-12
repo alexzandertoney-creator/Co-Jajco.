@@ -29,7 +29,7 @@ export async function loadUser() {
   const token = localStorage.getItem('token');
 
   if (!token) {
-    window.location.href = 'login.html';
+    window.location.href = '/login';
     return;
   }
 
@@ -42,7 +42,7 @@ export async function loadUser() {
 
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
-      window.location.href = 'login.html';
+      window.location.href = '/login';
       return;
     }
     if (!res.ok) throw new Error(`Server error ${res.status}`);

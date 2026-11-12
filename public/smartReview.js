@@ -34,12 +34,12 @@ const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('toke
 // ---------- Loading ----------
 
 async function loadUser() {
-  if (!localStorage.getItem('token')) return (window.location.href = 'login.html'), null;
+  if (!localStorage.getItem('token')) return (window.location.href = '/login'), null;
   try {
     const res = await fetch('/api/auth/me', { headers: authHeaders() });
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
-      window.location.href = 'login.html';
+      window.location.href = '/login';
       return null;
     }
     if (!res.ok) throw new Error(res.status);
@@ -158,7 +158,7 @@ function renderDone() {
   const actions = document.createElement('div');
   actions.className = 'actions';
   const home = document.createElement('a');
-  home.href = 'index.html';
+  home.href = '/';
   home.className = 'button-link';
   home.textContent = 'Back to studying';
   actions.appendChild(home);
@@ -253,7 +253,7 @@ document.addEventListener('keydown', (e) => {
 
 $('logoutBtn')?.addEventListener('click', () => {
   localStorage.removeItem('token');
-  window.location.href = 'login.html';
+  window.location.href = '/login';
 });
 
 document.body.classList.add('study-mode');
