@@ -56,7 +56,7 @@ export function renderHome(ctx) {
   const cont = $('heroContinue');
   cont.textContent = own.length ? (stats.due ? 'Learn new words' : 'Continue studying') : 'Browse starter decks';
   cont.classList.toggle('primary-on-dark', !stats.due);
-  cont.onclick = () => (own.length ? ctx.onStudy(lastDeckId(own)) : (window.location.href = 'recommended.html'));
+  cont.onclick = () => (own.length ? ctx.onStudy(lastDeckId(own)) : (window.location.href = '/library/starter'));
 
   renderTrail(profile);
   $('statLearned').textContent = stats.learned;
@@ -290,7 +290,7 @@ export function downloadReminder(time, user) {
   const local = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
   const goal = getProfile()?.dailyGoal || 20;
   const lang = langName(user?.learningLang);
-  const url = `${location.origin}/index.html`;
+  const url = `${location.origin}/`;
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Co Jajco//Reminder//EN', 'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',

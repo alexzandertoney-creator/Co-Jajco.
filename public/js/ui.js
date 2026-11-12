@@ -217,7 +217,7 @@ export function renderDeckState(deck, deckCount) {
     h.textContent = 'Start your first deck';
     p.textContent = 'Make your own deck, or add a ready-made starter deck for your level.';
     primary.textContent = 'Browse starter decks';
-    primary.addEventListener('click', () => { window.location.href = 'recommended.html'; });
+    primary.addEventListener('click', () => { window.location.href = '/library/starter'; });
     const create = document.createElement('button');
     create.type = 'button';
     create.className = 'ghost';

@@ -7,11 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Fraunces:opsz,wght,SOFT@9..144,500..800,100&display=swap" rel="stylesheet" />
+  <script>/* Old .html addresses -> clean URLs. */(function(){var m={'/index.html':'/','/smartReview.html':'/review','/recommended.html':'/library/starter','/login.html':'/login','/register.html':'/register'},p=m[location.pathname];if(p)history.replaceState(null,'',p+location.search+location.hash)})();</script>
   <script>/* Apply the saved appearance before first paint (no flash). */try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 
 <body>
@@ -65,13 +66,13 @@
 
       <button id="registerBtn" type="submit">Create account</button>
 
-      <p class="switch">Already have an account? <a href="login.html">Log in</a></p>
+      <p class="switch">Already have an account? <a href="/login">Log in</a></p>
     </form>
   </main>
 
-  <script src="js/dialogs.js"></script>
-  <script src="js/selects.js"></script>
-  <script src="register.js"></script>
-  <script type="module">import { mascot } from "./js/art.js"; document.getElementById("authMascot").innerHTML = mascot("wave");</script>
+  <script src="/js/dialogs.js"></script>
+  <script src="/js/selects.js"></script>
+  <script src="/register.js"></script>
+  <script type="module">import { mascot } from "/js/art.js"; document.getElementById("authMascot").innerHTML = mascot("wave");</script>
 </body>
 </html>

@@ -1623,12 +1623,12 @@ button.wp-save:disabled { opacity: .45; }
 /* ---------- "More" on phones: Decks, Grammar, Library live in a small menu ---------- */
 .primary-nav > .nav-more { display: none; }
 .nav-more-group { display: contents; } /* desktop: the items sit in the sidebar like any other */
-.primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href$="#storyAnalyzer"] { order: 2; }
-.nav-more-group > [data-mode="deckEditor"], .nav-more-group > a[href$="#deckEditor"] { order: 1; }
-.nav-more-group > :not([data-mode="deckEditor"]):not(a[href$="#deckEditor"]) { order: 3; }
+.primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href="/stories"] { order: 2; }
+.nav-more-group > [data-mode="deckEditor"], .nav-more-group > a[href="/decks"] { order: 1; }
+.nav-more-group > :not([data-mode="deckEditor"]):not(a[href="/decks"]) { order: 3; }
 @media (max-width: 760px) {
   .primary-nav > .nav-more { display: flex; order: 4; }
-  .primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href$="#storyAnalyzer"] { order: 0; }
+  .primary-nav > [data-mode="storyAnalyzer"], .primary-nav > a[href="/stories"] { order: 0; }
   .nav-more-group {
     display: none; position: fixed; right: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 101;
     flex-direction: column; gap: 2px; min-width: 200px; padding: 6px;
