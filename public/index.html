@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body data-group="home">
+<body data-group="home" class="app-loading">
 
   <aside class="sidebar">
     <a class="brand" href="index.html">
@@ -53,6 +53,11 @@
   </aside>
 
   <main class="main">
+    <div class="app-loader loader" role="status" aria-live="polite">
+      <div class="loader-art" aria-hidden="true"></div>
+      <p class="meta">Loading your cards…</p>
+    </div>
+    <script type="module">import { mascot } from "./js/art.js"; for (const el of document.querySelectorAll(".loader-art")) el.innerHTML = mascot("read");</script>
 
   <div class="deck-controls">
     <select id="deckSelect" class="deck-title" aria-label="Current deck"></select>

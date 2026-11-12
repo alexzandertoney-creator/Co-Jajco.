@@ -1645,3 +1645,35 @@ button.wp-save:disabled { opacity: .45; }
   .primary-nav.more-open .nav-more,
   .primary-nav:has(.nav-more-group [aria-current="page"]) .nav-more { color: var(--yolk); }
 }
+
+/* ---------- Loading state: Bigfoot until the first screen is ready ---------- */
+.loader.app-loader { display: none; } /* page loader: only while body.app-loading */
+.loader { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; padding: 32px 16px; grid-column: 1 / -1; text-align: center; }
+.loader .mascot { width: 72px; height: auto; transform-origin: 50% 100%; animation: sway 2.4s ease-in-out infinite; }
+.loader .mascot-page { transform-box: view-box; transform-origin: 100px 0; animation: page-flip 1.6s ease-in-out infinite; }
+@keyframes sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes page-flip { 0%, 25% { transform: scaleX(1); } 70%, 100% { transform: scaleX(-1); } }
+.loader p { margin: 0; }
+body.app-loading .app-loader { display: flex; max-width: 560px; margin: 12vh auto 0; }
+body.app-loading .app-loader .mascot { width: 88px; }
+@media (prefers-reduced-motion: reduce) { .loader .mascot, .loader .mascot-page { animation: none; } }
+body.app-loading .main > :not(.app-loader) { display: none !important; }
+
+/* Prepare the card for flipping up front, so the first flip isn't the slow one. */
+.card { will-change: transform; }
+.card-front, .card-back { will-change: transform; }
+
+/* Grammar on cards: space reserved while loading, faded in when it arrives. */
+.card-grammar { min-height: 44px; }
+.card-grammar > * { animation: gram-in .2s var(--ease); }
+@keyframes gram-in { from { opacity: 0; } }
+
+/* Mascot in more places */
+.gg-hero { display: flex; align-items: center; gap: 20px; }
+.gg-hero > div:first-child { flex: 1; min-width: 0; }
+.gg-hero-art .mascot { width: 110px; height: auto; display: block; }
+.gg-done-art .mascot { width: 96px; height: auto; display: block; margin: 0 auto; }
+.empty-hint.with-art { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; text-align: center; }
+.empty-hint.with-art .mascot { width: 96px; height: auto; }
+.empty-hint.with-art p { margin: 0; max-width: 44ch; }
+@media (max-width: 600px) { .gg-hero-art { display: none; } }

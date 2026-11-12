@@ -13,3 +13,8 @@
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') set(false); });
 })();
+
+// Polish letters (ą, ę, ł, ż…) are in a separate font file that browsers fetch only when
+// such a letter is first shown, hiding that word for a moment. Fetch it up front instead.
+document.fonts?.load?.('700 1em Fraunces', 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ').catch(() => {});
+document.fonts?.load?.('600 1em "Atkinson Hyperlegible Next"', 'ąćęłńóśźż').catch(() => {});

@@ -138,18 +138,6 @@ export function updateDeckSelect(filteredDecks) {
 }
 
 /**
- * Show loading state
- */
-export function showLoading(element, show = true) {
-  if (show) {
-    element.disabled = true;
-    element.textContent = 'Loading...';
-  } else {
-    element.disabled = false;
-  }
-}
-
-/**
  * Show popup message
  */
 export function showPopup(message, tone = 'info') {

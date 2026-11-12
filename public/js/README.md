@@ -79,7 +79,6 @@ public/
 - `renderMode(mode)` - Show/hide containers
 - `updateDeckSelect(decks)` - Populate deck dropdown
 - `updateStudyControls(isStudyMode)` - Toggle study mode styles
-- `showLoading(element, show)` - Loading state indicator
 - `showPopup(message)` - Toast notification
 
 ### tts.js

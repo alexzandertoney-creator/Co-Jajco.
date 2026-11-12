@@ -4,6 +4,7 @@
 
 import { CASES, GENDERS, grammarFor, openGrammarSheet, shardOf } from './grammar.js';
 import { shuffleArray } from './utils.js';
+import { mascot, loader } from './art.js';
 
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const first = (cell) => String(cell || '').split('/')[0];
@@ -406,7 +407,9 @@ async function practiceTopic(getDeckWords) {
   const show = () => {
     panel.replaceChildren();
     if (i >= qs.length) {
-      panel.append(el('p', 'quiz-label', 'Done'), el('p', 'prompt-word', `${score} / ${qs.length}`));
+      const art = el('div', 'gg-done-art');
+      art.innerHTML = mascot(score >= qs.length * 0.7 ? 'cheer' : 'wave');
+      panel.append(art, el('p', 'quiz-label', score >= qs.length * 0.7 ? 'Nicely done!' : 'Keep going — cases click with practice'), el('p', 'prompt-word', `${score} / ${qs.length}`));
       const again = el('button', null, 'Practice again'); again.type = 'button';
       again.addEventListener('click', () => { build(); show(); });
       panel.appendChild(again);
@@ -491,7 +494,9 @@ export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
     else msg.textContent = `No grammar for “${w}” yet. Try its dictionary form.`;
   });
   text.append(form, msg);
-  hero.appendChild(text);
+  const art = el('div', 'gg-hero-art');
+  art.innerHTML = mascot('cheer');
+  hero.append(text, art);
   root.appendChild(hero);
 
   const tabs = el('div', 'segmented gg-tabs');
@@ -503,7 +508,7 @@ export function renderGrammarGuide({ learningLang, getDeckWords } = {}) {
     for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.topic === key));
     try { localStorage.setItem('grammarTopic', key); } catch { /* storage blocked */ }
     const topic = TOPICS.find(([k]) => k === key) || TOPICS[0];
-    body.replaceChildren(el('p', 'meta', 'Loading…'));
+    body.innerHTML = loader('Loading…');
     const content = await topic[2](getDeckWords);
     if (t === token) body.replaceChildren(content);
   };

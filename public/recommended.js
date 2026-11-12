@@ -71,9 +71,13 @@ async function init() {
   await loadUser();
   await profileReady;
   renderIdentity(window.currentUser);
-  await loadExistingDecks();
-  await renderRecommendedDecks();
-  updateAddButton();
+  try {
+    await loadExistingDecks();
+    await renderRecommendedDecks();
+    updateAddButton();
+  } finally {
+    document.body.classList.remove('app-loading');
+  }
 
   const addBtn = document.getElementById("addSelectedDecks");
   addBtn?.addEventListener("click", addSelectedDecks);

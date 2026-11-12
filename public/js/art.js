@@ -13,6 +13,8 @@ const INK = '#2b2118';
 function body({ eyes = 'open' } = {}) {
   const eyesSvg = eyes === 'closed'
     ? `<path d="M83 80q5 4 10 0M107 80q5 4 10 0" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`
+    : eyes === 'down'
+    ? `<circle cx="88" cy="82" r="4.6" fill="${INK}"/><circle cx="112" cy="82" r="4.6" fill="${INK}"/>`
     : `<circle cx="88" cy="79" r="4.6" fill="${INK}"/><circle cx="112" cy="79" r="4.6" fill="${INK}"/>
        <circle cx="89.6" cy="77.4" r="1.5" fill="#fff"/><circle cx="113.6" cy="77.4" r="1.5" fill="#fff"/>`;
   return `
@@ -45,6 +47,9 @@ const ARMS = {
     <path d="M48 126c-18-14-26-38-24-62M152 126c18-14 26-38 24-62" fill="none" stroke="${FUR}" stroke-width="22" stroke-linecap="round"/>
     <ellipse cx="24" cy="56" rx="13" ry="14" fill="${SKIN}"/><ellipse cx="176" cy="56" rx="13" ry="14" fill="${SKIN}"/>
     <path d="M14 30l-6-8M24 26v-10M34 30l6-8M166 30l-6-8M176 26v-10M186 30l6-8" stroke="#e8a92a" stroke-width="4" stroke-linecap="round"/>`,
+  // Arms bent forward, holding the book drawn in front (see BOOK).
+  read: `
+    <path d="M46 130c-8 18-4 34 20 40M154 130c8 18 4 34-20 40" fill="none" stroke="${FUR}" stroke-width="22" stroke-linecap="round"/>`,
   // Hands folded on the belly (paired with closed eyes for the nap pose).
   rest: `
     <path d="M46 130c-8 20-4 40 22 46M154 130c8 20 4 40-22 46" fill="none" stroke="${FUR}" stroke-width="22" stroke-linecap="round"/>
@@ -54,11 +59,28 @@ const ARMS = {
 const ZZZ = `<g class="mascot-zzz" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".55">
   <path d="M150 40h12l-12 12h12"/><path d="M168 18h9l-9 9h9"/></g>`;
 
-/** Bigfoot. pose: 'wave' | 'cheer' | 'rest' */
+// An open book held in front of the belly; .mascot-page flips over and over (CSS).
+const BOOK = `
+  <g class="mascot-book" stroke="${INK}" stroke-linejoin="round">
+    <path d="M100 150 66 145v38l34 5Z" fill="#f1e7cf" stroke-width="2.5"/>
+    <path d="M100 150 134 145v38l-34 5Z" fill="#fbf6ea" stroke-width="2.5"/>
+    <path d="M72 155l22 3M72 163l22 3M72 171l17 2M106 158l22-3M106 166l22-3M106 174l16-2" stroke-width="1.6" opacity=".35"/>
+    <path class="mascot-page" d="M100 150 132 146v36l-32 5Z" fill="#fbf6ea" stroke-width="1.8"/>
+    <path d="M62 184l38 6 38-6" fill="none" stroke="#b5472e" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <ellipse cx="64" cy="168" rx="10" ry="12" fill="${SKIN}"/><ellipse cx="136" cy="168" rx="10" ry="12" fill="${SKIN}"/>`;
+
+/** The one loading indicator used everywhere: Bigfoot bobbing above a short message. */
+export function loader(text = 'Loading…') {
+  return `<div class="loader" role="status" aria-live="polite">${mascot('read')}<p class="meta">${text}</p></div>`;
+}
+
+/** Bigfoot. pose: 'wave' | 'cheer' | 'rest' | 'read' (reading a book, used while loading) */
 export function mascot(pose = 'wave', className = '') {
-  return `<svg class="mascot mascot-${pose} ${className}" viewBox="0 0 200 224" aria-hidden="true" focusable="false">
-    ${pose === 'rest' ? body({ eyes: 'closed' }) + ARMS.rest + ZZZ : (ARMS[pose] || ARMS.wave) + body()}
-  </svg>`;
+  const art = pose === 'rest' ? body({ eyes: 'closed' }) + ARMS.rest + ZZZ
+    : pose === 'read' ? ARMS.read + body({ eyes: 'down' }) + BOOK
+    : (ARMS[pose] || ARMS.wave) + body();
+  return `<svg class="mascot mascot-${pose} ${className}" viewBox="0 0 200 224" aria-hidden="true" focusable="false">${art}</svg>`;
 }
 
 // ---------- Merit patches ----------

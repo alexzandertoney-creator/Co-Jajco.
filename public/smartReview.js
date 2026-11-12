@@ -53,7 +53,7 @@ async function loadUser() {
 async function init() {
   const profileReady = loadProfile();
   user = await loadUser();
-  if (!user) return;
+  if (!user) return document.body.classList.remove('app-loading');
   await profileReady;
   renderIdentity(user);
   try {
@@ -62,6 +62,7 @@ async function init() {
     decks = (await res.json()).filter(d => d.learningLang === user.learningLang && d.nativeLang === user.nativeLang);
   } catch {
     toast('Couldn’t load your decks. Refresh to try again.', 'error');
+    document.body.classList.remove('app-loading');
     return;
   }
 
@@ -89,6 +90,7 @@ function buildQueue() {
     : 'Cards come back right before you’d forget them.';
   updateBadge();
   showCard();
+  document.body.classList.remove('app-loading');
 }
 
 // ---------- Session ----------

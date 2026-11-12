@@ -379,6 +379,7 @@ export function openGrammarSheet(info, startTab, { onClose } = {}) {
 export async function showCardGrammar(cardEl, cardData, frontIsQuestion, lang) {
   const sides = [cardEl?.querySelector('.card-front'), cardEl?.querySelector('.card-back')];
   if (!sides[0] || !sides[1]) return;
+  // The space is kept (empty) while the data loads, so the word doesn't jump when it arrives.
   for (const side of sides) {
     let box = side.querySelector('.card-grammar');
     if (!box) {
@@ -387,7 +388,7 @@ export async function showCardGrammar(cardEl, cardData, frontIsQuestion, lang) {
       side.insertBefore(box, side.querySelector('.speak'));
     }
     box.replaceChildren();
-    box.hidden = true;
+    box.hidden = lang !== 'pl';
   }
   if (lang !== 'pl' || !cardData) return;
   const token = (cardEl.dataset.gramToken = String(Math.random()));
@@ -398,5 +399,4 @@ export async function showCardGrammar(cardEl, cardData, frontIsQuestion, lang) {
   // The answer is on the back when the question is on the front, and vice versa.
   const box = sides[onAnswer === frontIsQuestion ? 1 : 0].querySelector('.card-grammar');
   box.appendChild(grammarSummary(info));
-  box.hidden = false;
 }

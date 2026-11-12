@@ -97,6 +97,7 @@ async function initializeApp() {
     };
     window.addEventListener('hashchange', openHash);
     openHash();
+    document.body.classList.remove('app-loading');
 
     // Every answered card counts toward today's goal and the streak.
     window.addEventListener('reviewScheduleChanged', () => recordAnswer());
@@ -123,6 +124,7 @@ async function initializeApp() {
     console.log('App initialized successfully');
   } catch (error) {
     console.error('Failed to initialize app:', error);
+    document.body.classList.remove('app-loading');
   }
 }
 

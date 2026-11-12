@@ -1,3 +1,4 @@
+import { mascot, loader } from './art.js';
 import { esc } from './utils.js';
 import * as DataManager from './data.js';
 import * as UI from './ui.js';
@@ -11,6 +12,9 @@ export function initPublicLibrary() {
   UI.publicLibraryShowDecksBtn?.addEventListener('click', () => setActiveTab('decks'));
   UI.publicLibraryShowStoriesBtn?.addEventListener('click', () => setActiveTab('stories'));
   UI.refreshPublicLibraryBtn?.addEventListener('click', loadPublicLibrary);
+  // Changing a filter reloads the list (it used to wait for Refresh).
+  UI.publicLibraryFilterLang?.addEventListener('change', loadPublicLibrary);
+  UI.publicLibraryFilterLevel?.addEventListener('change', loadPublicLibrary);
 
   setActiveTab('decks');
   loadPublicLibrary();
@@ -48,6 +52,8 @@ async function loadPublicLibrary() {
   if (!UI.refreshPublicLibraryBtn) return;
  
 
+  UI.publicLibraryDeckList.innerHTML = loader('Loading the Library…');
+  UI.publicLibraryStoryList.innerHTML = loader('Loading the Library…');
   try {
     const filters = getFilters();
     const [decks, stories] = await Promise.all([
@@ -92,7 +98,7 @@ function renderDeckList(decks) {
   UI.publicLibraryDeckList.innerHTML = '';
 
   if (!decks.length) {
-    UI.publicLibraryDeckList.innerHTML = '<p class="empty-hint">No public decks found. Try a different language or level.</p>';
+    UI.publicLibraryDeckList.innerHTML = `<div class="empty-hint with-art">${mascot('rest')}<p>No public decks here yet. Try a different language or level — or share one of yours.</p></div>`;
     return;
   }
 
@@ -128,7 +134,7 @@ function renderStoryList(stories) {
   UI.publicLibraryStoryList.innerHTML = '';
 
   if (!stories.length) {
-    UI.publicLibraryStoryList.innerHTML = '<p class="empty-hint">No public stories found. Try a different language or level.</p>';
+    UI.publicLibraryStoryList.innerHTML = `<div class="empty-hint with-art">${mascot('rest')}<p>No public stories here yet. Try a different language or level — or share one from the reader.</p></div>`;
     return;
   }
 
