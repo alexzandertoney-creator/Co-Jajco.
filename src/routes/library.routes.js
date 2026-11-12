@@ -1,6 +1,7 @@
 const express = require('express');
 const libraryController = require('../controllers/library.controller.js');
 const storiesController = require('../controllers/stories.controller.js');
+const notesController = require('../controllers/notes.controller.js');
 const authMiddleware = require('../middleware/auth.middleware.js');
 
 const router = express.Router();
@@ -26,5 +27,11 @@ router.post('/stories/import', authMiddleware, storiesController.importStories);
 router.delete('/stories', authMiddleware, storiesController.clearStories);
 router.put('/stories/:storyId', authMiddleware, storiesController.updateStoryTokens);
 router.delete('/stories/:storyId', authMiddleware, storiesController.deleteStory);
+
+// Notebook (private notes and writing)
+router.get('/notes', authMiddleware, notesController.listNotes);
+router.post('/notes', authMiddleware, notesController.createNote);
+router.put('/notes/:noteId', authMiddleware, notesController.updateNote);
+router.delete('/notes/:noteId', authMiddleware, notesController.deleteNote);
 
 module.exports = router;

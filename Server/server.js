@@ -25,7 +25,7 @@ app.use('/api/dictionary', dictionaryRoutes);
 const PUBLIC = path.join(__dirname, '../public');
 const PAGES = {
   '/study': 'index.html', '/study/learn': 'index.html', '/study/test': 'index.html', '/study/match': 'index.html',
-  '/decks': 'index.html', '/stories': 'index.html', '/grammar': 'index.html', '/library': 'index.html', '/profile': 'index.html',
+  '/decks': 'index.html', '/stories': 'index.html', '/grammar': 'index.html', '/notes': 'index.html', '/library': 'index.html', '/profile': 'index.html',
   '/review': 'smartReview.html', '/library/starter': 'recommended.html', '/login': 'login.html', '/register': 'register.html',
 };
 for (const [route, file] of Object.entries(PAGES)) app.get([route, `${route}/`], (req, res) => res.sendFile(path.join(PUBLIC, file)));

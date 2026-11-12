@@ -5,7 +5,7 @@
   "main": "Server/server.js",
   "scripts": {
     "start": "node Server/server.js",
-    "test": "node tests/grading.test.mjs && node tests/grammar.test.mjs && node tests/profile.test.cjs && node tests/stories.test.cjs && node tests/dictionary.test.cjs && node tests/account.test.cjs"
+    "test": "node tests/grading.test.mjs && node tests/grammar.test.mjs && node tests/profile.test.cjs && node tests/stories.test.cjs && node tests/notes.test.cjs && node tests/dictionary.test.cjs && node tests/account.test.cjs"
   },
   "author": "",
   "license": "ISC",

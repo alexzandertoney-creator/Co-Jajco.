@@ -38,7 +38,8 @@ export const MODES = {
   DECK_EDITOR: 'deckEditor',
   STORY_ANALYZER: 'storyAnalyzer',
   PUBLIC_LIBRARY: 'publicLibrary',
-  GRAMMAR: 'grammar'
+  GRAMMAR: 'grammar',
+  NOTES: 'notes'
 };
 
 // Keyboard contexts
